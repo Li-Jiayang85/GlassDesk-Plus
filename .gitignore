@@ -1,0 +1,19 @@
+bin/
+obj/
+Data/
+artifacts/
+publish/
+.vs/
+.vscode/
+.idea/
+TestResults/
+*.log
+*.trx
+*.user
+*.suo
+*.pfx
+*.p12
+*.pem
+
+# 打包产物：安装包走 GitHub Release，不进仓库
+packaging/Output/
