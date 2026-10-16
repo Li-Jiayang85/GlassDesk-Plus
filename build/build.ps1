@@ -20,6 +20,10 @@ param(
     # Phase 3/4 can start or activate applications and create visible windows; default is off.
     [switch]$InteractiveAcceptance,
     [switch]$UiAcceptance,
+    # The update acceptance run is offline by default. Turn this on to also hit real GitHub
+    # releases (discovery + installer download + sha256 check); it needs network access and
+    # GitHub's anonymous API rate limit, or GITHUB_TOKEN in the environment.
+    [switch]$OnlineAcceptance,
     # Desktop acceptance injects REAL mouse and keyboard events through SendInput, so it is
     # only allowed on an isolated desktop: a dedicated test account or a virtual machine.
     # It refuses to send anything unless GLASSDESK_ISOLATED_DESKTOP=1 is set, and that
@@ -285,6 +289,17 @@ try {
 
         & $dotnet run --project 'tests/GlassDesk.InteractionAcceptance' -c $Configuration -- --report (Join-Path $runEvidenceDirectory 'phase6-wpf.json')
         if ($LASTEXITCODE -ne 0) { throw "Phase 6 WPF acceptance failed (exit code $LASTEXITCODE)." }
+
+        # The update channel is the one place where two pieces of code must agree on a string
+        # (the installer asset name in ParseRelease and ValidateInstaller). A mismatch shipped
+        # once and broke every in-app update, so it gets its own acceptance run.
+        #
+        # Offline by default so an ordinary build does not depend on GitHub being reachable;
+        # pass -OnlineAcceptance to also exercise a real discovery and download.
+        $updateArguments = @('--report', (Join-Path $runEvidenceDirectory 'update-acceptance.json'))
+        if ($OnlineAcceptance) { $updateArguments += '--online' }
+        & $dotnet run --project 'tests/GlassDesk.UpdateAcceptance' -c $Configuration -- @updateArguments
+        if ($LASTEXITCODE -ne 0) { throw "Update acceptance failed (exit code $LASTEXITCODE)." }
     }
 
     if ($DesktopAcceptance) {

@@ -17,6 +17,7 @@
     <Project Path="tests/GlassDesk.UiAcceptance/GlassDesk.UiAcceptance.csproj" />
     <Project Path="tests/GlassDesk.LauncherAcceptance/GlassDesk.LauncherAcceptance.csproj" />
     <Project Path="tests/GlassDesk.InteractionAcceptance/GlassDesk.InteractionAcceptance.csproj" />
+    <Project Path="tests/GlassDesk.UpdateAcceptance/GlassDesk.UpdateAcceptance.csproj" />
     <Project Path="tests/GlassDesk.DesktopAcceptance/GlassDesk.DesktopAcceptance.csproj" />
   </Folder>
 </Solution>

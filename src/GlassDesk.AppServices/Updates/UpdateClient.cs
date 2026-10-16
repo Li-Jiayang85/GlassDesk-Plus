@@ -143,6 +143,18 @@ public sealed partial class UpdateClient
         }
     }
 
+    /// <summary>该发布信息是否足以支撑一次可信的下载与安装。</summary>
+    /// <remarks>
+    /// 公开出来是因为它本来就是 <see cref="UpdateRelease"/> 的契约，而不是内部细节：
+    /// 任何持有发布信息的一方（更新窗口、验收工程、外部集成）都需要能先问一句
+    /// 「这条信息可用吗」，而不是等到下载到一半才发现资产名对不上。
+    /// </remarks>
+    public static void EnsureUsable(UpdateRelease release)
+    {
+        ArgumentNullException.ThrowIfNull(release);
+        ValidateInstaller(release);
+    }
+
     internal static void ValidateInstaller(UpdateRelease release)
     {
         // 资产名必须与 ParseRelease 里认定的那一个完全一致：本分支打包出来的是
