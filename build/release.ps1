@@ -20,10 +20,13 @@
 param(
     [Parameter(Mandatory = $true)][string]$Version,
     [string]$Repository = 'Li-Jiayang85/GlassDesk-Plus',
-    # Where the GitHub release (and its installer asset) is published. Usually the same as
-    # -Repository. Point it at a legacy update repository when existing installs still read
-    # their update source from there; that repo needs an installer asset matching the same
-    # naming contract, otherwise those installs report "no unique Windows x64 installer".
+    # Where the GitHub release (and its installer asset) is published. Defaults to -Repository.
+    #
+    # Do NOT point this at the upstream author's repository (everlosttime/glassdesk-updates).
+    # That repo is not ours: we have no write access, and the in-app update source that led
+    # there is a leftover update-source.json inherited from the upstream product. The right
+    # fix for an install whose check fails with "no unique Windows x64 installer" is to delete
+    # that file, not to publish into someone else's repository.
     [string]$ReleaseRepository,
     [string]$ReleaseTitle,
     [string]$NotesFile,
