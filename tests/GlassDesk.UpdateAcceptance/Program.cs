@@ -19,7 +19,7 @@ namespace GlassDesk.UpdateAcceptance;
 /// 一点下载就报「安装包信息无效」。当时的验收只覆盖到发现新版本，所以漏了过去。
 /// 现在的断言把两处钉在一起，离线即可发现该类不一致。
 /// </remarks>
-internal static class Program
+internal static partial class Program
 {
     private static readonly List<object> Cases = [];
     private static int _failed;
@@ -30,6 +30,8 @@ internal static class Program
 
     private const string Digest = "sha256:6bda132f4aeea26fecbc9c9b79a0b4672858ad3b297ee2e894409c81879d376c";
 
+    // 托盘那段要真建一个仅消息窗口（HwndSource），WPF 要求调用线程是 STA。
+    [STAThread]
     private static int Main(string[] args)
     {
         try
@@ -37,6 +39,9 @@ internal static class Program
             Console.WriteLine("== 离线：更新信息解析与安装包校验 ==");
             VerifyParsingOffline();
             VerifyBatchRemovalCore();
+            Console.WriteLine();
+            Console.WriteLine("== 离线：托盘图标 ==");
+            VerifyTrayIconOffline();
 
             if (args.Contains("--online"))
             {

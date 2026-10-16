@@ -9,8 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\GlassDesk.App\GlassDesk.App.csproj" />
     <ProjectReference Include="..\..\src\GlassDesk.AppServices\GlassDesk.AppServices.csproj" />
     <ProjectReference Include="..\..\src\GlassDesk.Core\GlassDesk.Core.csproj" />
+    <ProjectReference Include="..\..\src\GlassDesk.Platform\GlassDesk.Platform.csproj" />
+    <ProjectReference Include="..\..\src\GlassDesk.UI\GlassDesk.UI.csproj" />
   </ItemGroup>
 
 </Project>
