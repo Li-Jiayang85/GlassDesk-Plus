@@ -20,6 +20,11 @@
 param(
     [Parameter(Mandatory = $true)][string]$Version,
     [string]$Repository = 'Li-Jiayang85/GlassDesk-Plus',
+    # Where the GitHub release (and its installer asset) is published. Usually the same as
+    # -Repository. Point it at a legacy update repository when existing installs still read
+    # their update source from there; that repo needs an installer asset matching the same
+    # naming contract, otherwise those installs report "no unique Windows x64 installer".
+    [string]$ReleaseRepository,
     [string]$ReleaseTitle,
     [string]$NotesFile,
     [string]$Configuration = 'Release',
@@ -35,6 +40,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $tag = "v$Version"
 if (-not $ReleaseTitle) { $ReleaseTitle = "GlassDesk Plus $Version" }
 if (-not $NotesFile) { $NotesFile = Join-Path $repoRoot "docs/releases/$Version.md" }
+if (-not $ReleaseRepository) { $ReleaseRepository = $Repository }
 $installerName = "GlassDesk-Plus-$Version-win-x64-Setup.exe"
 $installerPath = Join-Path $repoRoot "packaging/Output/$installerName"
 
@@ -105,6 +111,11 @@ try {
         'User-Agent'           = 'glassdesk-release'
     }
     $bodyText = if (Test-Path $NotesFile) { Get-Content $NotesFile -Raw -Encoding UTF8 } else { $ReleaseTitle }
+    Write-Host "release repo: $ReleaseRepository"
+
+    # Create via file payload: some filtering proxies reject a UTF-8 body built in memory
+    # with 422 while accepting the identical bytes from a file.
+    $payloadPath = Join-Path ([System.IO.Path]::GetTempPath()) ("glassdesk-release-" + [guid]::NewGuid().ToString('N') + ".json")
     $payload = @{
         tag_name         = $tag
         name             = $ReleaseTitle
@@ -113,15 +124,28 @@ try {
         prerelease       = $false
         target_commitish = 'main'
     } | ConvertTo-Json -Depth 4
-
-    $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$Repository/releases" `
-        -Headers $headers -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($payload))
+    [System.IO.File]::WriteAllText($payloadPath, $payload, (New-Object System.Text.UTF8Encoding($false)))
+    try {
+        $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$ReleaseRepository/releases" `
+            -Headers $headers -ContentType 'application/json' -InFile $payloadPath
+    }
+    finally { Remove-Item $payloadPath -Force -ErrorAction SilentlyContinue }
     Write-Host "release created: $($release.html_url)"
 
-    $uploadUrl = "https://uploads.github.com/repos/$Repository/releases/$($release.id)/assets?name=$installerName"
-    Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers `
-        -ContentType 'application/octet-stream' -InFile $installerPath | Out-Null
-    Write-Host "asset uploaded: $installerName"
+    # Upload with curl: schannel cannot complete the revocation check behind some proxies
+    # (CRYPT_E_NO_REVOCATION_CHECK), which fails the upload outright.
+    $curl = Join-Path $env:SystemRoot 'System32/curl.exe'
+    $uploadUrl = "https://uploads.github.com/repos/$ReleaseRepository/releases/$($release.id)/assets?name=$installerName"
+    $uploadJson = & $curl -sS --ssl-no-revoke -X POST `
+        -H "Authorization: Bearer $($env:GITHUB_TOKEN)" `
+        -H 'Accept: application/vnd.github+json' `
+        -H 'Content-Type: application/octet-stream' `
+        -H 'User-Agent: glassdesk-release' `
+        --data-binary "@$installerPath" `
+        $uploadUrl
+    $asset = $uploadJson | ConvertFrom-Json
+    if ($asset.name -ne $installerName) { throw "asset upload failed: $uploadJson" }
+    Write-Host "asset uploaded: $($asset.name) ($([math]::Round($asset.size / 1MB, 1)) MB, $($asset.state), $($asset.digest))"
     Write-Host 'done.'
 }
 finally {
