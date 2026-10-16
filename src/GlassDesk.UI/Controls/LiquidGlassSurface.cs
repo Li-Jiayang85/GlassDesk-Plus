@@ -891,8 +891,16 @@ public sealed class LiquidGlassSurface : FrameworkElement, IDisposable
         if (_compatibilityBackdrop is not null && _compatibilityStamp == stamp && _compatibilityBounds == bounds) return;
         if (_compatibilityIsDesktopSnapshot) RevealMaterialInvalidationReason = $"origin {_compatibilityStamp?.Origin} => {stamp.Origin}; dpi {_compatibilityStamp?.Dpi.DpiScaleX} => {stamp.Dpi.DpiScaleX}; bounds {_compatibilityBounds} => {bounds}; capture {_compatibilityStamp?.CaptureBounds} => {stamp.CaptureBounds}";
         _compatibilityStamp = stamp; _compatibilityBounds = bounds;
-        // A small, fully opaque ambient texture is immediately available. It contains
-        // no screen pixels and enters the exact production lens, tint and blur path.
+        // A small ambient texture is immediately available. It contains no screen pixels
+        // and enters the exact production lens, tint and blur path.
+        //
+        // 它的 Alpha **必须留出透明度**。原先写死 255（完全不透明），在深色主题下
+        // 就是一块近乎纯黑的板子；而下面那句会让启动台（UseLaunchpadOptics）与设了
+        // IsBackdropActive 的宿主（Dock）跳过壁纸材质——恰好就是「启动台」与
+        // 「Dock 上的小组件面板」这两处，于是它们在真材质到位前画的都是这块黑板，
+        // 观感就是点击时闪黑。留出透明度后，等待期间透出的是桌面、只压一层暗色薄纱；
+        // "不含屏幕像素、不走错误壁纸"这一设计意图没有改变。
+        const byte waitingAlpha = 150;
         const int width = 32, height = 24;
         var source = new byte[width * height * 4];
         for (var y = 0; y < height; y++)
@@ -903,7 +911,7 @@ public sealed class LiquidGlassSurface : FrameworkElement, IDisposable
             source[i] = (byte)((stamp.Dark ? 51 : 208) + variation);
             source[i + 1] = (byte)((stamp.Dark ? 43 : 205) + variation);
             source[i + 2] = (byte)((stamp.Dark ? 37 : 200) + variation);
-            source[i + 3] = 255;
+            source[i + 3] = waitingAlpha;
         }
         var filtered = new byte[source.Length]; var scratch = new byte[source.Length];
         RenderMaterialBackdropInto(stamp.Material, source, filtered, scratch, width, height,
