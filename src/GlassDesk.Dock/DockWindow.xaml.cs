@@ -417,6 +417,7 @@ public partial class DockWindow : GlassWindow
         SanitizePinnedLayout();
 
         RebuildAutoHide();
+        StartFullscreenWatchdog();
         RefreshTiles();
         RefreshFromSettings();
 
@@ -1539,6 +1540,7 @@ public partial class DockWindow : GlassWindow
     protected override void OnClosed(EventArgs e)
     {
         _frameTimer?.Stop();
+        StopFullscreenWatchdog();
         _failureNoticeTimer?.Stop();
         _widgetsTimer?.Stop();
         if (WidgetSettingsHost.Current is not null)
