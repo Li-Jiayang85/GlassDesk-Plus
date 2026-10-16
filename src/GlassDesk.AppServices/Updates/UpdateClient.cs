@@ -145,8 +145,12 @@ public sealed partial class UpdateClient
 
     internal static void ValidateInstaller(UpdateRelease release)
     {
+        // 资产名必须与 ParseRelease 里认定的那一个完全一致：本分支打包出来的是
+        // GlassDesk-Plus-<版本>-win-x64-Setup.exe（见 build/package.ps1 的 PackageBaseName）。
+        // 这里曾经漏了 "Plus"，导致发现新版本之后，下载前一校验就把自己刚认下的安装包拒掉，
+        // 报「安装包信息无效」。
         if (!StableVersionPattern().IsMatch(release.Version.ToString())
-            || release.FileName != $"GlassDesk-{release.Version}-win-x64-Setup.exe"
+            || release.FileName != $"GlassDesk-Plus-{release.Version}-win-x64-Setup.exe"
             || !DigestPattern().IsMatch("sha256:" + release.Sha256)
             || release.Size <= 0 || release.Size > MaximumInstallerSize)
             throw new InvalidDataException("安装包信息无效。");
