@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 using GlassDesk.Core.Models.Settings;
@@ -48,7 +49,6 @@ public partial class DockWindow
     {
         public required WidgetKind Kind { get; init; }
         public required Button Host { get; init; }
-        public required TextBlock Caption { get; init; }
         public MediaControlButtons? MediaControls { get; init; }
         public WidgetSettings? Settings { get; set; }
         public DateTime NextRefreshUtc { get; set; } = DateTime.MinValue;
@@ -127,33 +127,18 @@ public partial class DockWindow
 
         foreach (var kind in Enum.GetValues<WidgetKind>())
         {
-            var (glyph, name) = GetWidgetIdentity(kind);
+            var (iconData, name) = GetWidgetIdentity(kind);
 
-            var glyphBlock = new TextBlock
-            {
-                Text = glyph,
-                FontFamily = new FontFamily("Segoe UI Emoji, Segoe UI Symbol"),
-                FontSize = 22,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            var caption = new TextBlock
-            {
-                Text = name,
-                FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"),
-                FontSize = 9,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 3, 0, 0),
-            };
+            // 与固定入口同一套规格：48×48 的描边矢量图标，颜色跟随窗口前景色。
+            // 原先这里是彩色 emoji（Segoe UI Emoji）加下方 9pt 文字标题，
+            // 既不单色、尺寸与结构也与旁边那排入口不一致。
             var content = new StackPanel
             {
                 Orientation = Orientation.Vertical,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             };
-            content.Children.Add(glyphBlock);
-            content.Children.Add(caption);
+            content.Children.Add(BuildWidgetIcon(iconData));
 
             var host = new Button
             {
@@ -187,7 +172,6 @@ public partial class DockWindow
             {
                 Kind = kind,
                 Host = host,
-                Caption = caption,
                 MediaControls = controls,
             };
             host.Click += (_, _) => ToggleWidgetPanel(visual);
@@ -225,7 +209,6 @@ public partial class DockWindow
     {
         var host = WidgetSettingsHost.Current;
         var enabled = host?.Enabled ?? true;
-        var foreground = (Brush?)TryFindResource("ForegroundBrush") ?? Brushes.White;
 
         foreach (var visual in _widgetVisuals.Values)
         {
@@ -234,7 +217,6 @@ public partial class DockWindow
                 : null;
             var show = visual.Settings is { Enabled: true, DockDocked: true };
             visual.Host.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-            visual.Caption.Foreground = foreground;
             if (show)
             {
                 visual.Host.LayoutTransform = new ScaleTransform(visual.Settings!.Size, visual.Settings.Size);
@@ -830,17 +812,67 @@ public partial class DockWindow
         await LoadTodos();
     }
 
-    private static (string Glyph, string Name) GetWidgetIdentity(WidgetKind kind) => kind switch
+    /// <summary>
+    /// 按 Dock 固定入口的规格生成小组件图标。
+    /// </summary>
+    /// <remarks>
+    /// 固定入口（启动台、此电脑、切换桌面图标、设置）用的是同一套写法：48×48 的
+    /// Viewbox 套 Canvas，里面是描边路径——无填充、线宽 3.5、圆角接头与端帽，
+    /// 颜色绑到窗口的 ForegroundBrush 并随主题变化。
+    /// 小组件图标原先用彩色 emoji（Segoe UI Emoji）加下方 9pt 文字标题，
+    /// 既不单色、尺寸与结构也与旁边那排不一致；这里改成同一套矢量写法。
+    /// </remarks>
+    private Viewbox BuildWidgetIcon(string iconData)
     {
-        WidgetKind.Clock => ("🕐", "时钟"),
-        WidgetKind.Date => ("📅", "日期"),
-        WidgetKind.SystemMonitor => ("📊", "监控"),
-        WidgetKind.Weather => ("⛅", "天气"),
-        WidgetKind.AudioPlayer => ("🎵", "音频"),
-        WidgetKind.Notes => ("📝", "备忘"),
-        WidgetKind.Todo => ("✅", "待办"),
-        WidgetKind.Calendar => ("📆", "日历"),
-        _ => ("❔", "小组件"),
+        // 限定名：本文件同时用 System.IO.Path 做文件操作，直接 using Shapes 会让 Path 变成歧义引用。
+        var path = new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse(iconData),
+            Fill = Brushes.Transparent,
+            StrokeThickness = 3.5,
+            StrokeLineJoin = PenLineJoin.Round,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+        };
+
+        // 与 XAML 里的入口图标一样绑到窗口前景色：换主题时自动跟着变，
+        // 不需要在 RefreshWidgets 里逐项涂色。
+        path.SetBinding(
+            System.Windows.Shapes.Shape.StrokeProperty,
+            new Binding(nameof(ForegroundBrush)) { Source = this });
+
+        var canvas = new Canvas { Width = 48, Height = 48 };
+        canvas.Children.Add(path);
+
+        return new Viewbox
+        {
+            Width = 48,
+            Height = 48,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = canvas,
+        };
+    }
+
+    /// <summary>
+    /// 小组件图标的矢量路径与名称。
+    /// </summary>
+    /// <remarks>
+    /// 路径画在 48×48 画布上、图形收在 3–45 之间，与固定入口的图标同一尺度与笔画。
+    /// 八种图标各自可辨：时钟是圆盘加指针、日期是单日卡片、日历是带挂环的月网格、
+    /// 监控是仪表盘、天气是云加雨、音频是音符、备忘是带折角的纸、待办是方框加对勾。
+    /// </remarks>
+    private static (string IconData, string Name) GetWidgetIdentity(WidgetKind kind) => kind switch
+    {
+        WidgetKind.Clock => ("M24,5 A19,19 0 1,1 23.99,5 M24,13 V25 L32,30", "时钟"),
+        WidgetKind.Date => ("M9,10 H39 Q42,10 42,13 V39 Q42,42 39,42 H9 Q6,42 6,39 V13 Q6,10 9,10 Z M6,19 H42 M24,26 V36", "日期"),
+        WidgetKind.Calendar => ("M9,10 H39 Q42,10 42,13 V39 Q42,42 39,42 H9 Q6,42 6,39 V13 Q6,10 9,10 Z M6,19 H42 M15,6 V13 M33,6 V13 M14,26 H17 M23,26 H26 M32,26 H35 M14,33 H17 M23,33 H26 M32,33 H35", "日历"),
+        WidgetKind.SystemMonitor => ("M8,34 A16,16 0 1,1 40,34 M24,34 L33,23 M12,23 L15,26 M24,18 V22 M36,23 L33,26", "监控"),
+        WidgetKind.Weather => ("M13,30 H35 Q39,30 39,26 Q39,22 35,22 Q34,15 27,15 Q20,15 19,22 Q13,22 13,26 Q13,30 13,30 Z M18,35 L16,41 M26,35 L24,41 M34,35 L32,41", "天气"),
+        WidgetKind.AudioPlayer => ("M22,36 A4.5,4.5 0 1,1 21.99,36 M26,33 V10 Q35,13 35,23", "音频"),
+        WidgetKind.Notes => ("M14,6 H30 L40,16 V40 Q40,42 38,42 H14 Q12,42 12,40 V8 Q12,6 14,6 Z M30,6 V16 H40 M19,26 H33 M19,33 H33", "备忘"),
+        WidgetKind.Todo => ("M12,8 H36 Q40,8 40,12 V36 Q40,40 36,40 H12 Q8,40 8,36 V12 Q8,8 12,8 Z M16,24 L21,29 L32,17", "待办"),
+        _ => ("M12,12 H36 Q40,12 40,16 V32 Q40,36 36,36 H12 Q8,36 8,32 V16 Q8,12 12,12 Z M24,22 A2,2 0 1,1 23.99,22", "小组件"),
     };
 
     private string RenderWidgetDetail(WidgetKind kind)
