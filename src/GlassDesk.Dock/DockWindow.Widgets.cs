@@ -260,7 +260,6 @@ public partial class DockWindow
             visual.Host.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
             if (show)
             {
-                visual.Host.LayoutTransform = new ScaleTransform(visual.Settings!.Size, visual.Settings.Size);
                 visual.NextRefreshUtc = DateTime.MinValue;
             }
         }

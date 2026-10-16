@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using GlassDesk.Core.Models.Settings;
@@ -28,13 +28,13 @@ public partial class SettingsWindow
             var enabled = _dataStore is not null && WidgetsEnabledCheck.IsChecked == true;
 
             LoadWidgetControls(WidgetKind.Clock,
-                WidgetClockEnabledCheck, WidgetClockSizeSlider, WidgetClockDockCheck, WidgetClockRefreshCombo, enabled, current, WidgetRefreshOptions);
+                WidgetClockEnabledCheck, WidgetClockRefreshCombo, enabled, current, WidgetRefreshOptions);
             LoadWidgetControls(WidgetKind.Date,
-                WidgetDateEnabledCheck, WidgetDateSizeSlider, WidgetDateDockCheck, WidgetDateRefreshCombo, enabled, current, WidgetRefreshOptions);
+                WidgetDateEnabledCheck, WidgetDateRefreshCombo, enabled, current, WidgetRefreshOptions);
             LoadWidgetControls(WidgetKind.SystemMonitor,
-                WidgetMonitorEnabledCheck, WidgetMonitorSizeSlider, WidgetMonitorDockCheck, WidgetMonitorRefreshCombo, enabled, current, WidgetRefreshOptions);
+                WidgetMonitorEnabledCheck, WidgetMonitorRefreshCombo, enabled, current, WidgetRefreshOptions);
             LoadWidgetControls(WidgetKind.Weather,
-                WidgetWeatherEnabledCheck, WidgetWeatherSizeSlider, WidgetWeatherDockCheck, WidgetWeatherRefreshCombo, enabled, current, WidgetSlowRefreshOptions);
+                WidgetWeatherEnabledCheck, WidgetWeatherRefreshCombo, enabled, current, WidgetSlowRefreshOptions);
             // 天气城市：存在设置里，启动时自动填写（留空则按 IP 自动定位）。
             if (WidgetWeatherCityBox is not null)
             {
@@ -42,30 +42,24 @@ public partial class SettingsWindow
                 WidgetWeatherCityBox.IsEnabled = enabled;
             }
             LoadWidgetControls(WidgetKind.AudioPlayer,
-                WidgetAudioEnabledCheck, WidgetAudioSizeSlider, WidgetAudioDockCheck, null, enabled, current, WidgetRefreshOptions);
+                WidgetAudioEnabledCheck, null, enabled, current, WidgetRefreshOptions);
             LoadWidgetControls(WidgetKind.Notes,
-                WidgetNotesEnabledCheck, WidgetNotesSizeSlider, WidgetNotesDockCheck, null, enabled, current, WidgetRefreshOptions);
+                WidgetNotesEnabledCheck, null, enabled, current, WidgetRefreshOptions);
             LoadWidgetControls(WidgetKind.Todo,
-                WidgetTodoEnabledCheck, WidgetTodoSizeSlider, WidgetTodoDockCheck, null, enabled, current, WidgetRefreshOptions);
+                WidgetTodoEnabledCheck, null, enabled, current, WidgetRefreshOptions);
             LoadWidgetControls(WidgetKind.Calendar,
-                WidgetCalendarEnabledCheck, WidgetCalendarSizeSlider, WidgetCalendarDockCheck, null, enabled, current, WidgetRefreshOptions);
-
-            UpdateWidgetSizeReadouts();
+                WidgetCalendarEnabledCheck, null, enabled, current, WidgetRefreshOptions);
         }
         finally { _loadingWidgetsControls = false; }
     }
 
     private static void LoadWidgetControls(WidgetKind kind,
-        CheckBox enabledCheck, Slider sizeSlider, CheckBox dockCheck, ComboBox? refreshCombo,
+        CheckBox enabledCheck, ComboBox? refreshCombo,
         bool enabled, GlassDeskSettings? current, int[] refreshOptions)
     {
         var widget = current?.Widgets.FirstOrDefault(w => w.Kind == kind);
         enabledCheck.IsChecked = widget?.Enabled ?? true;
         enabledCheck.IsEnabled = enabled;
-        sizeSlider.Value = widget?.Size ?? 1.0;
-        sizeSlider.IsEnabled = enabled;
-        dockCheck.IsChecked = widget?.DockDocked ?? true;
-        dockCheck.IsEnabled = enabled;
         if (refreshCombo is not null)
         {
             refreshCombo.SelectedIndex = IndexOfRefresh(widget?.RefreshIntervalMs ?? refreshOptions[0], refreshOptions);
@@ -85,39 +79,7 @@ public partial class SettingsWindow
         return options.Length - 1;
     }
 
-    private void UpdateWidgetSizeReadouts()
-    {
-        if (WidgetClockSizeReadout is not null)
-            WidgetClockSizeReadout.Text = $"{WidgetClockSizeSlider.Value:0.00}×";
-        if (WidgetDateSizeReadout is not null)
-            WidgetDateSizeReadout.Text = $"{WidgetDateSizeSlider.Value:0.00}×";
-        if (WidgetMonitorSizeReadout is not null)
-            WidgetMonitorSizeReadout.Text = $"{WidgetMonitorSizeSlider.Value:0.00}×";
-        if (WidgetWeatherSizeReadout is not null)
-            WidgetWeatherSizeReadout.Text = $"{WidgetWeatherSizeSlider.Value:0.00}×";
-        if (WidgetAudioSizeReadout is not null)
-            WidgetAudioSizeReadout.Text = $"{WidgetAudioSizeSlider.Value:0.00}×";
-        if (WidgetNotesSizeReadout is not null)
-            WidgetNotesSizeReadout.Text = $"{WidgetNotesSizeSlider.Value:0.00}×";
-        if (WidgetTodoSizeReadout is not null)
-            WidgetTodoSizeReadout.Text = $"{WidgetTodoSizeSlider.Value:0.00}×";
-        if (WidgetCalendarSizeReadout is not null)
-            WidgetCalendarSizeReadout.Text = $"{WidgetCalendarSizeSlider.Value:0.00}×";
-    }
-
-    private void OnWidgetsControlChanged(object sender, RoutedEventArgs e) => ScheduleSaveWidgets();
-
-    private void OnWidgetsSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        // XAML 解析期 Slider 默认值变化会在后续控件创建前触发本事件，
-        // 此时 Readout 尚未生成，必须跳过，否则设置窗口一打开就崩。
-        if (_loadingWidgetsControls || WidgetClockSizeReadout is null)
-        {
-            return;
-        }
-        UpdateWidgetSizeReadouts();
-        ScheduleSaveWidgets();
-    }
+        private void OnWidgetsControlChanged(object sender, RoutedEventArgs e) => ScheduleSaveWidgets();
 
     /// <summary>滑块拖动期间用 400ms 防抖合并保存，避免每帧都写盘并重建 Dock。</summary>
     private void ScheduleSaveWidgets()
@@ -151,22 +113,22 @@ public partial class SettingsWindow
             current.Widgets =
             [
                 BuildWidget(WidgetKind.Clock,
-                    WidgetClockEnabledCheck, WidgetClockSizeSlider, WidgetClockDockCheck, WidgetClockRefreshCombo, WidgetRefreshOptions),
+                    WidgetClockEnabledCheck, WidgetClockRefreshCombo, WidgetRefreshOptions),
                 BuildWidget(WidgetKind.Date,
-                    WidgetDateEnabledCheck, WidgetDateSizeSlider, WidgetDateDockCheck, WidgetDateRefreshCombo, WidgetRefreshOptions),
+                    WidgetDateEnabledCheck, WidgetDateRefreshCombo, WidgetRefreshOptions),
                 BuildWidget(WidgetKind.SystemMonitor,
-                    WidgetMonitorEnabledCheck, WidgetMonitorSizeSlider, WidgetMonitorDockCheck, WidgetMonitorRefreshCombo, WidgetRefreshOptions),
+                    WidgetMonitorEnabledCheck, WidgetMonitorRefreshCombo, WidgetRefreshOptions),
                 BuildWidget(WidgetKind.Weather,
-                    WidgetWeatherEnabledCheck, WidgetWeatherSizeSlider, WidgetWeatherDockCheck, WidgetWeatherRefreshCombo, WidgetSlowRefreshOptions,
+                    WidgetWeatherEnabledCheck, WidgetWeatherRefreshCombo, WidgetSlowRefreshOptions,
                     WidgetWeatherCityBox?.Text.Trim() ?? ""),
                 BuildWidget(WidgetKind.AudioPlayer,
-                    WidgetAudioEnabledCheck, WidgetAudioSizeSlider, WidgetAudioDockCheck, null, WidgetRefreshOptions),
+                    WidgetAudioEnabledCheck, null, WidgetRefreshOptions),
                 BuildWidget(WidgetKind.Notes,
-                    WidgetNotesEnabledCheck, WidgetNotesSizeSlider, WidgetNotesDockCheck, null, WidgetRefreshOptions),
+                    WidgetNotesEnabledCheck, null, WidgetRefreshOptions),
                 BuildWidget(WidgetKind.Todo,
-                    WidgetTodoEnabledCheck, WidgetTodoSizeSlider, WidgetTodoDockCheck, null, WidgetRefreshOptions),
+                    WidgetTodoEnabledCheck, null, WidgetRefreshOptions),
                 BuildWidget(WidgetKind.Calendar,
-                    WidgetCalendarEnabledCheck, WidgetCalendarSizeSlider, WidgetCalendarDockCheck, null, WidgetRefreshOptions),
+                    WidgetCalendarEnabledCheck, null, WidgetRefreshOptions),
             ];
             var error = SettingsPageEditor.Validate(current);
             if (error is not null) throw new InvalidOperationException(error);
@@ -185,13 +147,11 @@ public partial class SettingsWindow
     }
 
     private static WidgetSettings BuildWidget(WidgetKind kind,
-        CheckBox enabledCheck, Slider sizeSlider, CheckBox dockCheck, ComboBox? refreshCombo, int[] refreshOptions,
+        CheckBox enabledCheck, ComboBox? refreshCombo, int[] refreshOptions,
         string weatherLocation = "") => new()
     {
         Kind = kind,
         Enabled = enabledCheck.IsChecked == true,
-        Size = Math.Clamp(sizeSlider.Value, WidgetSettings.MinimumSize, WidgetSettings.MaximumSize),
-        DockDocked = dockCheck.IsChecked == true,
         RefreshIntervalMs = refreshCombo is null
             ? refreshOptions[0]
             : refreshOptions[Math.Clamp(refreshCombo.SelectedIndex, 0, refreshOptions.Length - 1)],

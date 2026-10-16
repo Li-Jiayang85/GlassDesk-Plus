@@ -1,4 +1,4 @@
-<controls:GlassWindow
+﻿<controls:GlassWindow
     x:Class="GlassDesk.Settings.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -289,7 +289,7 @@
               <Separator Margin="0,4,0,14" />
               <TextBlock x:Name="WidgetsSectionHeading" FontSize="16" FontWeight="SemiBold" Text="小组件"
                          Foreground="{Binding ForegroundBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
-              <TextBlock Margin="0,8,0,6" TextWrapping="Wrap" Text="在 Dock 栏显示时钟、日期与系统监控。每个小组件可独立启用、调节尺寸与刷新频率；开启后仍可选择是否停靠在 Dock 栏。" />
+              <TextBlock Margin="0,8,0,6" TextWrapping="Wrap" Text="在 Dock 栏显示时钟、日期与系统监控。每个小组件可独立启用与设置刷新频率；图标大小统一跟随 Dock 的图标尺寸。" />
               <CheckBox x:Name="WidgetsEnabledCheck" Margin="0,6,0,8" Content="启用小组件"
                         AutomationProperties.Name="启用小组件"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
@@ -297,16 +297,7 @@
               <CheckBox x:Name="WidgetClockEnabledCheck" Margin="0,0,0,4" Content="启用时钟小组件"
                         AutomationProperties.Name="启用时钟小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel>
-                <TextBlock x:Name="WidgetClockSizeReadout" DockPanel.Dock="Right" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
-                <TextBlock Text="尺寸" VerticalAlignment="Center" />
-                <Slider x:Name="WidgetClockSizeSlider" Margin="8,0" Minimum="0.75" Maximum="2" TickFrequency="0.05"
-                        IsEnabled="False" ValueChanged="OnWidgetsSliderChanged" />
-              </DockPanel>
-              <CheckBox x:Name="WidgetClockDockCheck" Margin="0,6,0,4" Content="停靠到 Dock 栏"
-                        AutomationProperties.Name="时钟停靠到 Dock 栏" IsEnabled="False"
-                        Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel Margin="0,4,0,0">
+<DockPanel Margin="0,4,0,0">
                 <TextBlock Text="刷新频率" VerticalAlignment="Center" />
                 <ComboBox x:Name="WidgetClockRefreshCombo" Width="96" Margin="12,0,0,0" HorizontalAlignment="Left" IsEnabled="False"
                           SelectionChanged="OnWidgetsControlChanged">
@@ -319,16 +310,7 @@
               <CheckBox x:Name="WidgetDateEnabledCheck" Margin="0,0,0,4" Content="启用日期小组件"
                         AutomationProperties.Name="启用日期小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel>
-                <TextBlock x:Name="WidgetDateSizeReadout" DockPanel.Dock="Right" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
-                <TextBlock Text="尺寸" VerticalAlignment="Center" />
-                <Slider x:Name="WidgetDateSizeSlider" Margin="8,0" Minimum="0.75" Maximum="2" TickFrequency="0.05"
-                        IsEnabled="False" ValueChanged="OnWidgetsSliderChanged" />
-              </DockPanel>
-              <CheckBox x:Name="WidgetDateDockCheck" Margin="0,6,0,4" Content="停靠到 Dock 栏"
-                        AutomationProperties.Name="日期停靠到 Dock 栏" IsEnabled="False"
-                        Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel Margin="0,4,0,0">
+<DockPanel Margin="0,4,0,0">
                 <TextBlock Text="刷新频率" VerticalAlignment="Center" />
                 <ComboBox x:Name="WidgetDateRefreshCombo" Width="96" Margin="12,0,0,0" HorizontalAlignment="Left" IsEnabled="False"
                           SelectionChanged="OnWidgetsControlChanged">
@@ -341,16 +323,7 @@
               <CheckBox x:Name="WidgetMonitorEnabledCheck" Margin="0,0,0,4" Content="启用系统监控小组件（CPU / 内存占用）"
                         AutomationProperties.Name="启用系统监控小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel>
-                <TextBlock x:Name="WidgetMonitorSizeReadout" DockPanel.Dock="Right" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
-                <TextBlock Text="尺寸" VerticalAlignment="Center" />
-                <Slider x:Name="WidgetMonitorSizeSlider" Margin="8,0" Minimum="0.75" Maximum="2" TickFrequency="0.05"
-                        IsEnabled="False" ValueChanged="OnWidgetsSliderChanged" />
-              </DockPanel>
-              <CheckBox x:Name="WidgetMonitorDockCheck" Margin="0,6,0,4" Content="停靠到 Dock 栏"
-                        AutomationProperties.Name="系统监控停靠到 Dock 栏" IsEnabled="False"
-                        Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel Margin="0,4,0,0">
+<DockPanel Margin="0,4,0,0">
                 <TextBlock Text="刷新频率" VerticalAlignment="Center" />
                 <ComboBox x:Name="WidgetMonitorRefreshCombo" Width="96" Margin="12,0,0,0" HorizontalAlignment="Left" IsEnabled="False"
                           SelectionChanged="OnWidgetsControlChanged">
@@ -363,16 +336,7 @@
               <CheckBox x:Name="WidgetWeatherEnabledCheck" Margin="0,0,0,4" Content="启用天气小组件"
                         AutomationProperties.Name="启用天气小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel>
-                <TextBlock x:Name="WidgetWeatherSizeReadout" DockPanel.Dock="Right" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
-                <TextBlock Text="尺寸" VerticalAlignment="Center" />
-                <Slider x:Name="WidgetWeatherSizeSlider" Margin="8,0" Minimum="0.75" Maximum="2" TickFrequency="0.05"
-                        IsEnabled="False" ValueChanged="OnWidgetsSliderChanged" />
-              </DockPanel>
-              <CheckBox x:Name="WidgetWeatherDockCheck" Margin="0,6,0,4" Content="停靠到 Dock 栏"
-                        AutomationProperties.Name="天气停靠到 Dock 栏" IsEnabled="False"
-                        Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel Margin="0,4,0,0">
+<DockPanel Margin="0,4,0,0">
                 <TextBlock Text="刷新频率" VerticalAlignment="Center" />
                 <ComboBox x:Name="WidgetWeatherRefreshCombo" Width="96" Margin="12,0,0,0" HorizontalAlignment="Left" IsEnabled="False"
                           SelectionChanged="OnWidgetsControlChanged">
@@ -392,55 +356,19 @@
               <CheckBox x:Name="WidgetAudioEnabledCheck" Margin="0,0,0,4" Content="启用音频播放控制小组件"
                         AutomationProperties.Name="启用音频播放控制小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel>
-                <TextBlock x:Name="WidgetAudioSizeReadout" DockPanel.Dock="Right" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
-                <TextBlock Text="尺寸" VerticalAlignment="Center" />
-                <Slider x:Name="WidgetAudioSizeSlider" Margin="8,0" Minimum="0.75" Maximum="2" TickFrequency="0.05"
-                        IsEnabled="False" ValueChanged="OnWidgetsSliderChanged" />
-              </DockPanel>
-              <CheckBox x:Name="WidgetAudioDockCheck" Margin="0,6,0,4" Content="停靠到 Dock 栏"
-                        AutomationProperties.Name="音频播放控制停靠到 Dock 栏" IsEnabled="False"
-                        Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <TextBlock Margin="0,10,0,4" FontWeight="SemiBold" Text="备忘录" />
+<TextBlock Margin="0,10,0,4" FontWeight="SemiBold" Text="备忘录" />
               <CheckBox x:Name="WidgetNotesEnabledCheck" Margin="0,0,0,4" Content="启用备忘录小组件"
                         AutomationProperties.Name="启用备忘录小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel>
-                <TextBlock x:Name="WidgetNotesSizeReadout" DockPanel.Dock="Right" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
-                <TextBlock Text="尺寸" VerticalAlignment="Center" />
-                <Slider x:Name="WidgetNotesSizeSlider" Margin="8,0" Minimum="0.75" Maximum="2" TickFrequency="0.05"
-                        IsEnabled="False" ValueChanged="OnWidgetsSliderChanged" />
-              </DockPanel>
-              <CheckBox x:Name="WidgetNotesDockCheck" Margin="0,6,0,4" Content="停靠到 Dock 栏"
-                        AutomationProperties.Name="备忘录停靠到 Dock 栏" IsEnabled="False"
-                        Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <TextBlock Margin="0,10,0,4" FontWeight="SemiBold" Text="待办事项" />
+<TextBlock Margin="0,10,0,4" FontWeight="SemiBold" Text="待办事项" />
               <CheckBox x:Name="WidgetTodoEnabledCheck" Margin="0,0,0,4" Content="启用待办事项小组件"
                         AutomationProperties.Name="启用待办事项小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel>
-                <TextBlock x:Name="WidgetTodoSizeReadout" DockPanel.Dock="Right" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
-                <TextBlock Text="尺寸" VerticalAlignment="Center" />
-                <Slider x:Name="WidgetTodoSizeSlider" Margin="8,0" Minimum="0.75" Maximum="2" TickFrequency="0.05"
-                        IsEnabled="False" ValueChanged="OnWidgetsSliderChanged" />
-              </DockPanel>
-              <CheckBox x:Name="WidgetTodoDockCheck" Margin="0,6,0,4" Content="停靠到 Dock 栏"
-                        AutomationProperties.Name="待办事项停靠到 Dock 栏" IsEnabled="False"
-                        Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <TextBlock Margin="0,10,0,4" FontWeight="SemiBold" Text="日历" />
+<TextBlock Margin="0,10,0,4" FontWeight="SemiBold" Text="日历" />
               <CheckBox x:Name="WidgetCalendarEnabledCheck" Margin="0,0,0,4" Content="启用日历小组件"
                         AutomationProperties.Name="启用日历小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <DockPanel>
-                <TextBlock x:Name="WidgetCalendarSizeReadout" DockPanel.Dock="Right" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
-                <TextBlock Text="尺寸" VerticalAlignment="Center" />
-                <Slider x:Name="WidgetCalendarSizeSlider" Margin="8,0" Minimum="0.75" Maximum="2" TickFrequency="0.05"
-                        IsEnabled="False" ValueChanged="OnWidgetsSliderChanged" />
-              </DockPanel>
-              <CheckBox x:Name="WidgetCalendarDockCheck" Margin="0,6,0,4" Content="停靠到 Dock 栏"
-                        AutomationProperties.Name="日历停靠到 Dock 栏" IsEnabled="False"
-                        Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-              <TextBlock x:Name="WidgetsSettingsStatus" Margin="0,10,0,14" TextWrapping="Wrap"
+<TextBlock x:Name="WidgetsSettingsStatus" Margin="0,10,0,14" TextWrapping="Wrap"
                          AutomationProperties.Name="小组件设置状态" />
               <Separator Margin="0,4,0,14" />
               <TextBlock x:Name="DesktopSectionHeading" FontSize="16" FontWeight="SemiBold" Text="桌面"
