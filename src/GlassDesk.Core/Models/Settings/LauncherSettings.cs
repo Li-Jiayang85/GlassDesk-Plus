@@ -1,4 +1,4 @@
-namespace GlassDesk.Core.Models.Settings;
+﻿namespace GlassDesk.Core.Models.Settings;
 
 /// <summary>启动台的网格、窗口与搜索行为。</summary>
 public sealed class LauncherSettings
@@ -28,4 +28,7 @@ public sealed class LauncherSettings
     /// 再次打开时恢复上次停留的页面，关闭则总是从第一页开始。
     /// </summary>
     public bool RememberLastPage { get; set; } = true;
+
+    /// <summary>是否已在安装后的首次启动时批量导入过桌面快捷方式（只做一次）。</summary>
+    public bool DesktopShortcutsImported { get; set; }
 }

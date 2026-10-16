@@ -80,9 +80,9 @@ Filename: "schtasks.exe"; Parameters: "/Create /F /TN ""GlassDesk"" /TR """"{app
 
 [UninstallRun]
 ; 卸载前强制结束正在运行的 GlassDesk（Dock 窗口会拦截优雅关闭请求，必须兜底强杀）
-Filename: "taskkill.exe"; Parameters: "/IM GlassDesk.exe /F /T"; Flags: runhidden
+Filename: "taskkill.exe"; Parameters: "/IM GlassDesk.exe /F /T"; Flags: runhidden; RunOnceId: "KillRunningGlassDesk"
 ; 卸载时删除登录计划任务
-Filename: "schtasks.exe"; Parameters: "/Delete /F /TN ""GlassDesk"""; Flags: runhidden nowait
+Filename: "schtasks.exe"; Parameters: "/Delete /F /TN ""GlassDesk"""; Flags: runhidden nowait; RunOnceId: "DeleteLogonTask"
 
 [Code]
 function IsGlassDeskUpdate: Boolean;

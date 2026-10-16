@@ -77,6 +77,34 @@ public sealed class AppPaths
     public static string ManagedCustomIconPath(string dataRoot, string fileName)
         => Path.Combine(dataRoot, IconCacheSubdirectory, fileName);
 
+    /// <summary>
+    /// 把只存了文件名的自定义图标引用解析成数据目录下的绝对路径；为空、越界或文件不存在时返回 null。
+    /// </summary>
+    /// <remarks>
+    /// 设置里存的是文件名而不是路径，所以每次使用都要经过这里重新落到当前数据目录。
+    /// 拒绝带目录分隔符或上跳的名字：这个引用来自可手工编辑的 JSON，不能当作可信路径来拼。
+    /// </remarks>
+    public string? ResolveManagedCustomIcon(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName)) return null;
+        if (fileName.Contains(Path.DirectorySeparatorChar) || fileName.Contains(Path.AltDirectorySeparatorChar)
+            || fileName.Contains("..", StringComparison.Ordinal)) return null;
+        var full = ManagedCustomIconPath(RootDirectory, fileName);
+        return File.Exists(full) ? full : null;
+    }
+
+    /// <summary>数据目录下现有的全部托管自定义图标文件名（仅文件名，按名称排序）。</summary>
+    public IReadOnlyList<string> ManagedCustomIconFileNames()
+    {
+        var iconsDirectory = IconCacheDirectory;
+        if (!Directory.Exists(iconsDirectory)) return [];
+        return [.. Directory.GetFiles(iconsDirectory, ManagedCustomIconPrefix + "*")
+            .Select(Path.GetFileName)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => name!)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)];
+    }
+
     /// <summary>用户从设置中心主动创建的备份。</summary>
     public string BackupDirectory => Path.Combine(RootDirectory, "backup");
 

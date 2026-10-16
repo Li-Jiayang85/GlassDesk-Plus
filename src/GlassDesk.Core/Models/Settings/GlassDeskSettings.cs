@@ -32,6 +32,9 @@ public sealed class GlassDeskSettings
 
     public DesktopTaskbarSettings DesktopTaskbar { get; set; } = new();
 
+    /// <summary>通知区域图标的显示与外观。</summary>
+    public TraySettings Tray { get; set; } = new();
+
     /// <summary>小组件总开关。</summary>
     public bool WidgetsEnabled { get; set; } = true;
 
@@ -52,6 +55,15 @@ public sealed class GlassDeskSettings
         Display ??= new DisplaySettings();
         Performance ??= new PerformanceSettings();
         DesktopTaskbar ??= new DesktopTaskbarSettings();
+        Tray ??= new TraySettings();
+        // 只接受文件名：绝对路径或带目录的值一律视为损坏，回退到内置图标。
+        if (!string.IsNullOrWhiteSpace(Tray.CustomIconFileName)
+            && (Tray.CustomIconFileName.Contains(Path.DirectorySeparatorChar)
+                || Tray.CustomIconFileName.Contains(Path.AltDirectorySeparatorChar)
+                || Tray.CustomIconFileName.Contains("..", StringComparison.Ordinal)))
+        {
+            Tray.CustomIconFileName = null;
+        }
         Dock.AutoHide = false;
         Dock.EdgeRevealEnabled = false;
         Launcher.FullscreenMode = false;

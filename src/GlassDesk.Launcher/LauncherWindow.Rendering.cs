@@ -86,6 +86,8 @@ public partial class LauncherWindow
             _notice = null;
         RefreshDiagnostics();
         RenderGroup();
+        // 翻页换出的是缓存磁贴，勾选角标要按当前选中集合重新贴一遍。
+        RefreshSelection();
         ApplyContentReveal(_hasTransformPath ? _containerMotion?.CurrentFrame.ContentOpacity ?? 1 : 1);
         // Capture the final page / group after item-count clamping and group validation.
         _lastTilesRenderKey = CurrentTilesRenderKey();
@@ -149,6 +151,8 @@ public partial class LauncherWindow
         }
         button.PreviewMouseLeftButtonUp += OnTileMouseUp;
         button.ContextMenu = BuildTileMenu(slot);
+        // 保留的磁贴可能是在多选之前建的；这里按当前选中状态补一次视觉。
+        ApplySelectionVisual(button, IsSelecting);
         return button;
     }
 
@@ -233,8 +237,14 @@ public partial class LauncherWindow
 
     private void OnTileActivated(LauncherSlot slot)
     {
-        if (_dragEdit is not null || _suppressTileClick) return;
+        if (_dragEdit is not null || _suppressTileClick || _suppressTileClickAfterDrop) return;
         var id = slot.Kind == LauncherSlotKind.Group ? slot.Group?.Id : slot.ItemId;
+        // 多选模式下点图标是「勾选/取消」，绝不启动应用或打开分组。
+        if (IsSelecting)
+        {
+            if (id is not null) ToggleSelection(id);
+            return;
+        }
         if (slot.Kind == LauncherSlotKind.Group)
         {
             _view.OpenGroupId = id;

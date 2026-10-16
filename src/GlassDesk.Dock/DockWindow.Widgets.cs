@@ -39,6 +39,15 @@ public partial class DockWindow
     // Dock 里那个内联面板元素保留但永不显示——它承载的内容构建函数仍被弹窗复用。
     private WidgetPopupWindow? _widgetPopup;
 
+    /// <summary>
+    /// 当前打开的面板里那一个会变的文字元素（时钟/日期/监控/日历用）。
+    /// </summary>
+    /// <remarks>
+    /// 有了它，定时刷新只需改文字，不必重建整棵内容树——原先每 500ms 重建一次，
+    /// 实测让工作集在 25 分钟内涨约 113 MB、句柄 +178。
+    /// </remarks>
+    private TextBlock? _activePanelDetail;
+
     /// <summary>收起时的缩放：面板从略小长到原大小，手感接近系统控制中心。</summary>
     private const double WidgetPanelRestScale = .94;
 
@@ -283,10 +292,12 @@ public partial class DockWindow
             else if (visual.Kind == WidgetKind.AudioPlayer) _ = RefreshMediaSessionAsync();
 
             // 展示型小组件面板打开时同步更新内容
-            if (_activePanelKind == visual.Kind && visual.Kind is WidgetKind.Clock or WidgetKind.Date or WidgetKind.SystemMonitor or WidgetKind.Calendar)
-            {
-                ShowWidgetPanel(visual, force: true);
-            }
+            if (_activePanelKind == visual.Kind && _activePanelDetail is not null)
+                {
+                    // 只改那一行文字：原先这里调 ShowWidgetPanel(force: true) 重建整棵面板，
+                    // 每 500ms 一次、一小时约 7200 次元素创建，是内存与句柄增长的主因。
+                    _activePanelDetail.Text = RenderWidgetDetail(visual.Kind);
+                }
             visual.NextRefreshUtc = nowUtc.AddMilliseconds(Math.Max(WidgetSettings.MinimumRefreshMs, visual.Settings.RefreshIntervalMs));
         }
     }
@@ -442,6 +453,7 @@ public partial class DockWindow
     {
         _activePanelKind = null;
         _editingNoteId = null;
+        _activePanelDetail = null;
 
         // 弹窗负责收起动画与关窗；Dock 里的内联面板从未显示过，
         // 所以下面的分支会立刻走到收尾（不播动画）。
@@ -563,6 +575,7 @@ public partial class DockWindow
             LineHeight = 30,
             Text = RenderWidgetDetail(kind),
         };
+        _activePanelDetail = text;
         return text;
     }
 

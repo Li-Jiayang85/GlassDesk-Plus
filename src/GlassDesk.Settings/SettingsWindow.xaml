@@ -1,4 +1,4 @@
-﻿<controls:GlassWindow
+<controls:GlassWindow
     x:Class="GlassDesk.Settings.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -370,6 +370,29 @@
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
 <TextBlock x:Name="WidgetsSettingsStatus" Margin="0,10,0,14" TextWrapping="Wrap"
                          AutomationProperties.Name="小组件设置状态" />
+              <Separator Margin="0,4,0,14" />
+              <TextBlock x:Name="TraySectionHeading" FontSize="16" FontWeight="SemiBold" Text="托盘图标"
+                         Foreground="{Binding ForegroundBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
+              <TextBlock Margin="0,8,0,10" TextWrapping="Wrap"
+                         Text="通知区域图标的显示与外观。图标只能从数据目录 icons 里已有的自定义图标中选择——也就是你给应用换过的那几张图；没有自定义图标时用内置标识。" />
+              <CheckBox x:Name="TrayShowIconCheck" Margin="0,4,0,10" Content="在通知区域显示 GlassDesk 图标"
+                        AutomationProperties.Name="显示托盘图标"
+                        Checked="OnTrayControlChanged" Unchecked="OnTrayControlChanged" />
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <controls:PhoneBorder Width="52" Height="52" CornerRadius="10" Background="#14FFFFFF"
+                        BorderBrush="#33FFFFFF" BorderThickness="1" Padding="5"
+                        AutomationProperties.Name="当前托盘图标预览">
+                  <Image x:Name="TrayIconPreview" Width="40" Height="40" Stretch="Uniform" />
+                </controls:PhoneBorder>
+                <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                  <TextBlock Text="托盘图标" FontWeight="SemiBold" />
+                  <ComboBox x:Name="TrayIconCombo" Width="220" Margin="0,4,0,0"
+                            AutomationProperties.Name="选择托盘图标"
+                            SelectionChanged="OnTrayIconSelectionChanged" />
+                </StackPanel>
+              </StackPanel>
+              <TextBlock x:Name="TraySettingsStatus" Margin="0,10,0,14" TextWrapping="Wrap"
+                         AutomationProperties.Name="托盘设置状态" />
               <Separator Margin="0,4,0,14" />
               <TextBlock x:Name="DesktopSectionHeading" FontSize="16" FontWeight="SemiBold" Text="桌面"
                          Foreground="{Binding ForegroundBrush, RelativeSource={RelativeSource AncestorType=Window}}" />

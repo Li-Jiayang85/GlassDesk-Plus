@@ -15,6 +15,17 @@ public partial class LauncherWindow
     private string? _dragIconId;
     private Button? _dragGhost;
     private bool _suppressTileClick;
+
+    /// <summary>
+    /// 刚刚发生过一次「放下」，本次鼠标抬起合成的 Click 必须丢掉。
+    /// </summary>
+    /// <remarks>
+    /// <c>_suppressTileClick</c> 只在内部拖拽的收尾路径上置位。走 OLE 放下再回来
+    /// （<c>OnExternalDrop</c>）那条路不会经过 <c>FinishIconDrag</c>，于是松手时
+    /// 点中的那张磁贴仍会收到一次 Click——本来会被当成「打开这个应用」。
+    /// 由放下路径显式置位，与前者一样在下一个 Background 时机清除。
+    /// </remarks>
+    private bool _suppressTileClickAfterDrop;
     private int _previewIndex = -1;
     private bool _previewExchange;
     private DateTimeOffset _pagePreviewAfter;
@@ -412,6 +423,14 @@ public partial class LauncherWindow
         }
         else ClearDragGhost();
         Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() => _suppressTileClick = false));
+    }
+
+    /// <summary>放下之后清掉本次合成点击，和内部拖拽收尾用同一个时机。</summary>
+    private void SuppressSyntheticClickAfterDrop()
+    {
+        _suppressTileClickAfterDrop = true;
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background,
+            new Action(() => _suppressTileClickAfterDrop = false));
     }
 
     private void ClearDragGhost()

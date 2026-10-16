@@ -122,6 +122,13 @@ public partial class LauncherWindow
                 // 从启动台移除（仅移除布局，不删除源文件与库记录）。
                 AddMenu(menu, "删除", () => CommitEdit(layout => LauncherLayoutEditor.RemoveShortcut(layout, id, _view.Capacity)));
             }
+
+            // 多选入口：右键任意图标即可勾选多个后一次删除。
+            menu.Items.Add(new Separator());
+            if (IsSelecting)
+                AddMenu(menu, "退出多选", EndSelection);
+            else
+                AddMenu(menu, "多选…", () => BeginSelection(id));
         }
         return menu;
     }

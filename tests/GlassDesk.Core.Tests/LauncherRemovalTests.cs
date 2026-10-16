@@ -39,4 +39,44 @@ public sealed class LauncherRemovalTests
         Assert.Equal(["keep"], LauncherLayoutRules.AppIds(migrated));
         Assert.DoesNotContain("excludedAppIds", JsonSerializer.Serialize(migrated), StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void BatchRemovalDropsEveryRequestedEntryAndKeepsTheRest()
+    {
+        var initial = LauncherLayoutRules.Reconcile(new LauncherLayout(), ["a", "b", "c", "d"], 35);
+        var removed = LauncherLayoutEditor.RemoveShortcuts(initial, ["a", "c"], 35);
+        Assert.Equal(["b", "d"], LauncherLayoutRules.AppIds(removed));
+        // 批量删除与单个删除同义：不留隐藏名单，重新扫描也不会把它们带回来。
+        Assert.Empty(removed.ExcludedAppIds);
+        Assert.Equal(["b", "d"], LauncherLayoutRules.AppIds(
+            LauncherLayoutRules.Reconcile(removed, ["a", "b", "c", "d"], 35)));
+    }
+
+    [Fact]
+    public void BatchRemovalTakesGroupMembersOutAndCollapsesTheGroup()
+    {
+        var initial = LauncherLayoutRules.Reconcile(new LauncherLayout(), ["a", "b", "keep"], 35);
+        var grouped = LauncherLayoutEditor.CreateGroup(initial, "a", "b", "group", 35);
+        var removed = LauncherLayoutEditor.RemoveShortcuts(grouped, ["a"], 35);
+        // 组里只剩一个成员时摊回普通图标，组壳不该留下。
+        Assert.Equal(["b", "keep"], LauncherLayoutRules.AppIds(removed));
+        Assert.DoesNotContain(removed.Pages.SelectMany(page => page.Slots), slot => slot.Kind == LauncherSlotKind.Group);
+    }
+
+    [Fact]
+    public void BatchRemovalIgnoresUnknownAndRepeatedIds()
+    {
+        var initial = LauncherLayoutRules.Reconcile(new LauncherLayout(), ["a", "b"], 35);
+        var removed = LauncherLayoutEditor.RemoveShortcuts(initial, ["a", "a", "never-existed", ""], 35);
+        Assert.Equal(["b"], LauncherLayoutRules.AppIds(removed));
+    }
+
+    [Fact]
+    public void BatchRemovingEverythingLeavesAnEmptyLayoutThatStillReconciles()
+    {
+        var initial = LauncherLayoutRules.Reconcile(new LauncherLayout(), ["a", "b"], 35);
+        var removed = LauncherLayoutEditor.RemoveShortcuts(initial, ["a", "b"], 35);
+        Assert.Empty(removed.Pages);
+        Assert.Empty(LauncherLayoutRules.AppIds(LauncherLayoutRules.Reconcile(removed, ["a", "b"], 35)));
+    }
 }

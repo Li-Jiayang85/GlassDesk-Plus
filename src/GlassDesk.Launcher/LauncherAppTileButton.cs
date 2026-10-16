@@ -8,6 +8,14 @@ namespace GlassDesk.Launcher;
 
 internal sealed class LauncherAppTileButton : Button
 {
+    /// <summary>该磁贴在启动台多选中是否被勾选。</summary>
+    /// <remarks>
+    /// 做成依赖属性而不是去模板里找那个角标：磁贴刚 <c>new</c> 出来时模板还没应用，
+    /// 按名字查模板子元素会静默失败。绑定则会在模板应用时自动接上。
+    /// </remarks>
+    public static readonly DependencyProperty IsSelectedProperty = DependencyProperty.Register(
+        nameof(IsSelected), typeof(bool), typeof(LauncherAppTileButton), new PropertyMetadata(false));
+
     private readonly ScaleTransform _iconScale = new(1, 1);
     private readonly FrameworkElement _iconHost;
 
@@ -17,6 +25,13 @@ internal sealed class LauncherAppTileButton : Button
         iconHost.RenderTransformOrigin = new Point(.5, .5);
         iconHost.RenderTransform = _iconScale;
         Unloaded += (_, _) => ResetIconScale();
+    }
+
+    /// <summary>多选勾选状态；由 <c>LauncherWindow</c> 写入，模板绑定读取。</summary>
+    public bool IsSelected
+    {
+        get => (bool)GetValue(IsSelectedProperty);
+        set => SetValue(IsSelectedProperty, value);
     }
 
     protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)

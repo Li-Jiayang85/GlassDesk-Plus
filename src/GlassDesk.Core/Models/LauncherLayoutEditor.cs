@@ -57,6 +57,35 @@ public static class LauncherLayoutEditor
         return Pack(slots, capacity);
     }
 
+    /// <summary>
+    /// 一次移除多个启动台条目（批量删除）。只是布局操作，源文件与库记录都保留。
+    /// </summary>
+    /// <remarks>
+    /// 逐个套用 <see cref="RemoveShortcut"/>，所以「分组里只剩一个成员就把分组摊回单个应用、
+    /// 组空了就整个去掉」这些规则与单个删除完全一致，不会出现批量走另一套语义。
+    /// 找不到的 id 会被忽略：多选期间布局可能已被其它路径改过，少删一个不该让整批失败。
+    /// </remarks>
+    public static LauncherLayout RemoveShortcuts(LauncherLayout source, IEnumerable<string> slotIds, int capacity)
+    {
+        ArgumentNullException.ThrowIfNull(slotIds);
+        ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
+
+        var draft = LauncherLayoutRules.DeepClone(source);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var slotId in slotIds)
+        {
+            if (string.IsNullOrWhiteSpace(slotId) || !seen.Add(slotId)) continue;
+            if (!ContainsSlot(draft, slotId)) continue;
+            draft = RemoveShortcut(draft, slotId, capacity);
+        }
+        return draft;
+    }
+
+    /// <summary>该 id 是顶层槽位、分组本身，还是某个分组的成员。</summary>
+    private static bool ContainsSlot(LauncherLayout source, string slotId)
+        => source.Pages.SelectMany(page => page.Slots).Any(slot =>
+            SlotId(slot) == slotId || slot.Group?.ItemIds.Contains(slotId, StringComparer.Ordinal) == true);
+
     public static LauncherLayout CreateGroup(LauncherLayout source, string movingId, string targetId, string groupId, int capacity)
     {
         if (movingId == targetId) throw new InvalidOperationException("An item cannot be grouped with itself.");

@@ -28,7 +28,8 @@ public partial class LauncherWindow
 
     private void OnTileMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (_view.IsSearching || _logicalIconDrag || _oleIconDrag || sender is not Button button) return;
+        // 多选模式下左键是勾选，不能同时成为长按拾取的起点。
+        if (_view.IsSearching || IsSelecting || _logicalIconDrag || _oleIconDrag || sender is not Button button) return;
         _pressedId = button.Tag as string;
         _pressedTile = button;
         _grabPoint = e.GetPosition(button);
@@ -205,6 +206,7 @@ public partial class LauncherWindow
                 PlaceIconAtPointer(point, (e.KeyStates & DragDropKeyStates.AltKey) != 0, true);
                 _dropCommitted = _workspace.Commit(_dragEdit);
                 if (!_dropCommitted) ShowNotice("拖拽期间布局或应用库已变化，请重试。");
+                if (_dropCommitted) SuppressSyntheticClickAfterDrop();
                 e.Effects = _dropCommitted ? DragDropEffects.Move : DragDropEffects.None;
                 return;
             }
@@ -223,6 +225,7 @@ public partial class LauncherWindow
             _dragEdit.Draft = LauncherLayoutEditor.Move(_dragEdit.Draft, source, _view.Page, index, _view.Capacity);
             _dropCommitted = _workspace.Commit(_dragEdit);
             if (!_dropCommitted) ShowNotice("拖拽期间布局或应用库已变化，请重试。");
+            else SuppressSyntheticClickAfterDrop();
         }
         catch (Exception ex) when (ex is StorageException or InvalidOperationException or ArgumentException)
         {
@@ -257,7 +260,11 @@ public partial class LauncherWindow
             _dragEdit.Draft = LauncherLayoutEditor.RemoveShortcut(_dragEdit.Draft, source, _view.Capacity);
             _dropCommitted = _workspace.Commit(_dragEdit);
             if (!_dropCommitted) ShowNotice("拖拽期间布局或应用库已变化，请重试。");
-            else ShowNotice("已从启动台移除，需要时可重新添加。", autoDismiss: true);
+            else
+            {
+                SuppressSyntheticClickAfterDrop();
+                ShowNotice("已从启动台移除，需要时可重新添加。", autoDismiss: true);
+            }
         }
         catch (Exception ex) when (ex is StorageException or InvalidOperationException or ArgumentException)
         {

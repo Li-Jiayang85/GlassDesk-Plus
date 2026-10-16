@@ -60,7 +60,6 @@ internal sealed partial class AppHost : IDisposable
     private DataLoadReport? _loadReport;
     private HwndSource? _messageWindow;
     private TrayIcon? _tray;
-    private nint _trayIconHandle;
     private MissingTargetReport? _missingReport;
     private PrimaryDisplaySession? _primaryDisplaySession;
 
@@ -185,6 +184,8 @@ internal sealed partial class AppHost : IDisposable
         InitializeInteractionController();
 
         theme.Changed += OnThemeChanged;
+
+        ImportDesktopShortcutsOnFirstRun();
 
         WriteStartupLog();
 
@@ -362,6 +363,10 @@ internal sealed partial class AppHost : IDisposable
         // 退出前先恢复桌面图标（上次退出时被隐藏了）。
         _interaction?.SetDesktopIcons(true);
 
+        // 也先从通知区域摘下图标。只收窗口不够：收完 shell 那边可能还留一个
+        // 点不动的死图标，直到鼠标划过才消失。
+        _tray?.Hide();
+
         // 必须放行窗口关闭，关停才能走完，
         // 否则下面的关闭处理函数会把它拦住。
         _deferredCommandGate.Close();
@@ -421,6 +426,7 @@ internal sealed partial class AppHost : IDisposable
                 _application.Dispatcher.BeginInvoke(RefreshLibraryForPerformance);
         };
         _settings.LauncherSettingsChanged += (_, settings) => _launcher?.ApplySettings(settings);
+        _settings.TraySettingsChanged += (_, _) => ApplyTraySettings();
 
         _launcher.ApplySettings(_data!.Settings.Current.Launcher);
 
@@ -468,6 +474,53 @@ internal sealed partial class AppHost : IDisposable
         _messageWindow.AddHook(OnMessageWindowProc);
     }
 
+    /// <summary>
+    /// 安装后第一次启动时，把桌面上的快捷方式批量导入应用库。
+    /// </summary>
+    /// <remarks>
+    /// 走 ImportService.ImportItems 按路径导入——与命令行 --import 同一条路，
+    /// 所以不需要改动「开始菜单」扫描器。只做一次：处理完就写标记，避免每次启动重复扫描；
+    /// 失败不写标记，下次启动自动重试。全程不弹窗、不影响启动。
+    /// </remarks>
+    private void ImportDesktopShortcutsOnFirstRun()
+    {
+        if (_services is null || _data is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var launcher = _data.Settings.Current.Launcher;
+            if (launcher.DesktopShortcutsImported)
+            {
+                return;
+            }
+
+            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            var requests = new List<GlassDesk.Core.Contracts.ImportRequest>();
+            if (Directory.Exists(desktop))
+            {
+                foreach (var path in Directory.EnumerateFiles(desktop, "*.lnk"))
+                {
+                    requests.Add(new GlassDesk.Core.Contracts.ImportRequest { Source = path, IsUrl = false });
+                }
+            }
+
+            if (requests.Count > 0)
+            {
+                _services.Import.ImportItems(requests);
+            }
+
+            launcher.DesktopShortcutsImported = true;
+            _data.Settings.Save();
+        }
+        catch (Exception)
+        {
+            // 首次导入失败不该影响启动；标记未写入，下次启动会再试一次。
+        }
+    }
+
     private void CreateTrayIcon()
     {
         if (_messageWindow is null)
@@ -475,11 +528,70 @@ internal sealed partial class AppHost : IDisposable
             return;
         }
 
-        _trayIconHandle = TrayIconArtwork.CreateHandle(32);
-
-        _tray = new TrayIcon(_messageWindow.Handle);
-        _tray.Show(_trayIconHandle, "GlassDesk");
+        LoadTrayIcon();
     }
+
+    /// <summary>
+    /// 按当前设置重建托盘图标，并让通知区域里的图标与之一致。
+    /// </summary>
+    /// <remarks>
+    /// 设置里改了「显示图标」或换了自定义图标之后，这是唯一的落地点——
+    /// 句柄先备好再动 shell 状态，避免出现一瞬间没有图标的托盘。
+    /// </remarks>
+    private void LoadTrayIcon()
+    {
+        if (_messageWindow is null) return;
+
+        var settings = _data?.Settings.Current.Tray;
+        var handle = CreateTrayIconHandle(settings, 32);
+
+        _tray ??= new TrayIcon(_messageWindow.Handle);
+        if (settings?.ShowIcon == false || handle == 0)
+        {
+            // 关掉时连句柄一起放掉：托盘图标移除后再留着它是纯粹的泄漏。
+            _tray.Hide();
+            if (handle != 0) GlassDesk.Platform.IconFactory.DestroyIcon(handle);
+            return;
+        }
+
+        _tray.Update(handle, "GlassDesk");
+    }
+
+    /// <summary>
+    /// 自定义图标渲染失败（文件被删、格式不认识）时回退到内置标识，
+    /// 所以这里不抛异常，只可能返回 0——那表示连内置标识都拿不到，托盘应先保持隐藏。
+    /// </summary>
+    private nint CreateTrayIconHandle(GlassDesk.Core.Models.Settings.TraySettings? settings, int size)
+    {
+        if (settings is not null && _data is not null)
+        {
+            var custom = _data.Paths.ResolveManagedCustomIcon(settings.CustomIconFileName);
+            if (custom is not null)
+            {
+                try
+                {
+                    return TrayIconArtwork.CreateHandleFromFile(custom, size);
+                }
+                catch (Exception ex) when (ex is IOException or NotSupportedException or InvalidOperationException or ArgumentException)
+                {
+                    AppendToLog($"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] 自定义托盘图标不可用，已回退到内置图标：{ex.Message}");
+                }
+            }
+        }
+
+        try
+        {
+            return TrayIconArtwork.CreateHandle(size);
+        }
+        catch (InvalidOperationException ex)
+        {
+            AppendToLog($"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] 内置托盘图标不可用：{ex.Message}");
+            return 0;
+        }
+    }
+
+    /// <summary>设置页改动了托盘外观后调用：立即重建托盘图标。</summary>
+    public void ApplyTraySettings() => LoadTrayIcon();
 
     private nint OnMessageWindowProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
     {
@@ -635,13 +747,9 @@ internal sealed partial class AppHost : IDisposable
 
     private void OnThemeChanged(object? sender, EventArgs e)
     {
-        // 这个标志是按浅色或深色背景分别绘制的，所以必须重新渲染。
-        if (_tray is null)
-        {
-            return;
-        }
-
-        _tray.Update(TrayIconArtwork.CreateHandle(32), "GlassDesk");
+        // 内置标识按浅色或深色背景分别绘制，所以主题变了要重画。
+        // 用的是自定义图标时重画没有意义，但代价很低，统一走同一条刷新路径。
+        LoadTrayIcon();
 
         var icon = CreateWindowIcon();
         foreach (Window window in new Window[] { _dock!, _launcher!, _settings! })

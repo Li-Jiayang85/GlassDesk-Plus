@@ -63,7 +63,8 @@ public partial class SettingsWindow : GlassWindow
         }
 
         _sectionHeadings = [AppearanceSectionHeading, DockSectionHeading, LauncherSectionHeading,
-            ShortcutsSectionHeading, PerformanceSectionHeading, WidgetsSectionHeading, DesktopSectionHeading, BackupSectionHeading, AboutSectionHeading];
+            ShortcutsSectionHeading, PerformanceSectionHeading, WidgetsSectionHeading, TraySectionHeading,
+            DesktopSectionHeading, BackupSectionHeading, AboutSectionHeading];
         PlannedPages =
         [
             "外观",
@@ -72,6 +73,7 @@ public partial class SettingsWindow : GlassWindow
             "快捷操作",
             "性能",
             "小组件",
+            "托盘",
             "桌面",
             "备份恢复",
             "关于",
@@ -82,7 +84,7 @@ public partial class SettingsWindow : GlassWindow
     private void OnSettingsWindowLoaded(object sender, RoutedEventArgs e) => SyncCategoryFromScroll();
 
     private bool CanResetSelectedPage => SettingsPageList.SelectedItem is string page
-        && page is "外观" or "Dock" or "启动台" or "快捷操作" or "性能" or "小组件" or "桌面";
+        && page is "外观" or "Dock" or "启动台" or "快捷操作" or "性能" or "小组件" or "托盘" or "桌面";
 
     private void UpdateResetPageButton() => ResetPageButton.IsEnabled = SettingsPageList.IsEnabled
         && _dataStore is not null && CanResetSelectedPage;
@@ -112,6 +114,7 @@ public partial class SettingsWindow : GlassWindow
         LoadInteractionControls();
         LoadPerformanceControls();
         LoadWidgetsControls();
+        LoadTrayControls();
         LoadDesktopStatus();
         RefreshDiagnostics(loadReport);
     }

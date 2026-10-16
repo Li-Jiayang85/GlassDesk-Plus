@@ -33,6 +33,7 @@ internal static partial class Program
         if (args.Contains("--fullscreen-fixture")) return RunPerformanceFullscreenFixture(args);
         if (args.Contains("--full-host-performance")) return VerifyFullHostPerformance(args);
         if (args.Contains("--full-host-input")) return VerifyFullHostInput(args);
+        if (args.Contains("--batch-delete")) return VerifyBatchDelete(args);
         var report = Argument(args, "--report") ?? Path.Combine(Environment.CurrentDirectory, "phase5-wpf.json");
         var supplied = Argument(args, "--data-dir");
         var root = supplied is null ? Path.Combine(Path.GetTempPath(), "GlassDesk-P5-Wpf-" + Guid.NewGuid().ToString("n")) : Path.GetFullPath(supplied);

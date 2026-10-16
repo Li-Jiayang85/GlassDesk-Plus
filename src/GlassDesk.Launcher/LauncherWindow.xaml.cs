@@ -56,6 +56,7 @@ public partial class LauncherWindow : GlassWindow
         PageViewport.SizeChanged += (_, _) => StopPageSlide();
         Deactivated += OnLauncherDeactivated;
         IsVisibleChanged += OnVisibilityChanged;
+        PreviewKeyDown += OnLauncherPreviewKeyDown;
         Loaded += (_, _) => RefreshLibrary();
         TextCompositionManager.AddPreviewTextInputStartHandler(SearchBox, (_, _) => { _imeComposing = true; NavigationAvailabilityChanged?.Invoke(this, EventArgs.Empty); });
         TextCompositionManager.AddPreviewTextInputUpdateHandler(SearchBox, (_, _) => { _imeComposing = true; NavigationAvailabilityChanged?.Invoke(this, EventArgs.Empty); });
@@ -267,6 +268,8 @@ public partial class LauncherWindow : GlassWindow
             CancelDrag();
             _view.OpenGroupId = null;
             GroupPanel.Visibility = Visibility.Collapsed;
+            // 关窗后重开不该还留着上一次的勾选。
+            EndSelection();
         }
         else
         {
