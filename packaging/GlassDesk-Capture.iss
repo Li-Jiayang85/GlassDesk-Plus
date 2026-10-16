@@ -1,4 +1,4 @@
-﻿; User-scope x64 installer for the local GlassDesk candidate.
+; User-scope x64 installer for the local GlassDesk candidate.
 #ifndef AppIdValue
   #error AppIdValue is required.
 #endif
@@ -23,9 +23,9 @@
 AppId={#AppIdValue}
 AppName=GlassDesk Plus
 AppVersion={#ProductVersion}
-AppVerName=GlassDesk {#ProductVersion}
+AppVerName=GlassDesk Plus {#ProductVersion}
 DefaultDirName={localappdata}\Programs\GlassDesk
-DefaultGroupName=GlassDesk
+DefaultGroupName=GlassDesk Plus
 DisableDirPage=no
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
@@ -36,10 +36,10 @@ UsePreviousAppDir=yes
 CloseApplications=yes
 RestartApplications=no
 MinVersion=10.0.22000
-UninstallDisplayName=GlassDesk
+UninstallDisplayName=GlassDesk Plus
 UninstallDisplayIcon={app}\GlassDesk.exe
 SetupIconFile=..\src\GlassDesk.App\Assets\GlassDesk.ico
-AppPublisher=GlassDesk
+AppPublisher=GlassDesk Plus
 VersionInfoProductName=GlassDesk Plus
 VersionInfoProductVersion={#FileVersion}
 VersionInfoVersion={#FileVersion}
