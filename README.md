@@ -2,7 +2,16 @@
 
 Windows 11 x64 桌面美化工具：玻璃 Dock、启动台和统一设置中心。
 
-[下载正式版本](https://github.com/everlosttime/glassdesk-updates/releases) · [源码版本](https://github.com/everlosttime/glassdesk-open-source/tags)
+[下载本分支版本](https://github.com/Li-Jiayang85/GlassDesk-Plus/releases) · [上游源码快照](https://github.com/everlosttime/glassdesk-open-source/tags)
+
+> **本仓库是修改版（Fork）**，基于原作者 [everlosttime/glassdesk](https://github.com/everlosttime/glassdesk) 的 Apache-2.0 源码快照（1.3.1）。原始来源与许可信息见 `SOURCE-PROVENANCE.json`、`LICENSE`、`NOTICE`。
+
+## 本分支的改动
+
+- **移除「检查更新」功能。** 原更新通道指向上游作者的发布仓库，用它更新会下载并安装上游版本、从而覆盖本分支自己的功能。因此本分支删除了检查与安装更新的全部代码（`AppHost.Updates`、`UpdateClient`、`UpdateInstaller`、`UpdateRelease`、`UpdateWindow`、设置页入口），删除了打包用的 `update-source.json`，并删除了相关测试（`UpdateClientTests`、`UpdateInstallerTests`、`UpdateAcceptance` 工程）。「关于」页只保留版本显示。
+- **小组件图标并入 Dock 栏同一行。** 不再独占 Dock 底部独立的一行，而是与启动台、此电脑、切换桌面图标、设置等按钮并排显示，尺寸、间距与对齐方式与其他按钮保持一致；点击小组件图标的行为不变，小组件仍可通过设置单独启用/禁用与调节。
+
+除上述改动外，功能与上游 1.3.1 快照保持一致。本分支沿用同一 Apache-2.0 许可；第三方代码与资源仍保留各自许可，详见 `NOTICE` 与 `docs/third-party`。
 
 ## 公开版本
 
