@@ -67,9 +67,12 @@ public sealed class InstallationLocator
                 var displayName = ReadString(key, "DisplayName");
                 var installValue = ReadString(key, "InstallLocation");
                 var uninstallValue = ReadString(key, "UninstallString");
-                if (!string.Equals(displayName, "GlassDesk", StringComparison.Ordinal))
+                // 本分支更名为 GlassDesk Plus，安装登记里的显示名随之改变；
+                // 仍然接受旧名 "GlassDesk"，这样从原版/旧改版升级过来的安装也能被认出来
+                // （否则启动时的自动检查会对这些用户永远不触发）。
+                if (displayName is not ("GlassDesk" or "GlassDesk Plus"))
                 {
-                    return Mismatch("固定产品登记的显示名称与 GlassDesk 不一致。");
+                    return Mismatch("固定产品登记的显示名称与 GlassDesk Plus 不一致。");
                 }
 
                 if (string.IsNullOrWhiteSpace(installValue) || string.IsNullOrWhiteSpace(uninstallValue))

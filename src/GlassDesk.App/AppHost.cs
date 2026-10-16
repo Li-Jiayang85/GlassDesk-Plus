@@ -188,9 +188,7 @@ internal sealed partial class AppHost : IDisposable
 
         WriteStartupLog();
 
-        // 本分支已移除检查更新功能（更新通道会指向上游仓库并覆盖本分支），
-        // 「关于」页只显示当前版本。
-        _settings?.ShowProductVersion();
+        InitializeUpdates();
 
         return StartupOutcome.Started;
     }
@@ -242,6 +240,8 @@ internal sealed partial class AppHost : IDisposable
         }
 
         _deferredCommandGate.Close();
+
+        DisposeUpdates();
 
         if (ThemeService.Current is { } theme)
         {

@@ -1,10 +1,10 @@
-<controls:GlassWindow
+﻿<controls:GlassWindow
     x:Class="GlassDesk.Dock.DockWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:GlassDesk.UI.Controls;assembly=GlassDesk.UI"
-    Title="GlassDesk Dock"
-    AutomationProperties.Name="GlassDesk 程序坞"
+    Title="GlassDesk Plus Dock"
+    AutomationProperties.Name="GlassDesk Plus 程序坞"
     ShowInTaskbar="False"
     SizeToContent="WidthAndHeight"
     WindowStartupLocation="Manual"
@@ -104,7 +104,7 @@
             </Button>
             <Button x:Name="SettingsButton" Width="48" Height="64" Margin="0,0,8,0" Padding="0"
                     Style="{StaticResource DockEntryButton}"
-                    ToolTip="GlassDesk 设置" AutomationProperties.Name="打开 GlassDesk 设置"
+                    ToolTip="GlassDesk Plus 设置" AutomationProperties.Name="打开 GlassDesk Plus 设置"
                     MouseEnter="OnEntryMouseEnter" MouseLeave="OnEntryMouseLeave"
                     Click="OnSettingsButtonClick">
               <Viewbox x:Name="SettingsTile" Width="48" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center">

@@ -14,12 +14,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <Product>GlassDesk</Product>
-    <Company>GlassDesk</Company>
-    <!-- Product updates use this version; retain the delivered assembly identity. -->
-    <Version>1.3.1</Version>
-    <AssemblyVersion>0.2.2.0</AssemblyVersion>
-    <FileVersion>1.3.1.0</FileVersion>
+    <Product>GlassDesk Plus</Product>
+    <Company>GlassDesk Plus</Company>
+    <!--
+      本分支（GlassDesk Plus）自 1.0 起独立编号：关于页显示的版本、以及更新检查
+      与 GitHub Release 比较用的版本，都取自这里。
+    -->
+    <Version>1.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
     <NeutralLanguage>zh-Hans</NeutralLanguage>
 
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
