@@ -116,21 +116,45 @@ try {
     $bodyText = if (Test-Path $NotesFile) { Get-Content $NotesFile -Raw -Encoding UTF8 } else { $ReleaseTitle }
     Write-Host "release repo: $ReleaseRepository"
 
-    # Create via file payload: some filtering proxies reject a UTF-8 body built in memory
-    # with 422 while accepting the identical bytes from a file.
+    $releaseUrl = "https://api.github.com/repos/$ReleaseRepository/releases"
     $payloadPath = Join-Path ([System.IO.Path]::GetTempPath()) ("glassdesk-release-" + [guid]::NewGuid().ToString('N') + ".json")
-    $payload = @{
+    [System.IO.File]::WriteAllText($payloadPath, (@{
         tag_name         = $tag
         name             = $ReleaseTitle
         body             = $bodyText
         draft            = [bool]$Draft
         prerelease       = $false
         target_commitish = 'main'
-    } | ConvertTo-Json -Depth 4
-    [System.IO.File]::WriteAllText($payloadPath, $payload, (New-Object System.Text.UTF8Encoding($false)))
+    } | ConvertTo-Json -Depth 4), (New-Object System.Text.UTF8Encoding($false)))
+
+    $release = $null
     try {
-        $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$ReleaseRepository/releases" `
-            -Headers $headers -ContentType 'application/json' -InFile $payloadPath
+        $release = Invoke-RestMethod -Method Post -Uri $releaseUrl -Headers $headers `
+            -ContentType 'application/json' -InFile $payloadPath
+    }
+    catch {
+        # Some filtering proxies reject a non-ASCII body on POST with 422 while accepting the
+        # same text on PATCH. Create with an ASCII placeholder, then patch the real notes in.
+        $status = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
+        if ($status -ne 422) { throw }
+        Write-Warning "POST rejected the notes body (HTTP 422); creating with a placeholder and patching them in."
+        [System.IO.File]::WriteAllText($payloadPath, (@{
+            tag_name         = $tag
+            name             = $ReleaseTitle
+            body             = $ReleaseTitle
+            draft            = [bool]$Draft
+            prerelease       = $false
+            target_commitish = 'main'
+        } | ConvertTo-Json -Depth 4), (New-Object System.Text.UTF8Encoding($false)))
+        $release = Invoke-RestMethod -Method Post -Uri $releaseUrl -Headers $headers `
+            -ContentType 'application/json' -InFile $payloadPath
+
+        [System.IO.File]::WriteAllText($payloadPath, (@{
+            body = $bodyText
+        } | ConvertTo-Json -Depth 3), (New-Object System.Text.UTF8Encoding($false)))
+        $release = Invoke-RestMethod -Method Patch -Uri "$releaseUrl/$($release.id)" -Headers $headers `
+            -ContentType 'application/json' -InFile $payloadPath
+        Write-Host 'notes patched in.'
     }
     finally { Remove-Item $payloadPath -Force -ErrorAction SilentlyContinue }
     Write-Host "release created: $($release.html_url)"
