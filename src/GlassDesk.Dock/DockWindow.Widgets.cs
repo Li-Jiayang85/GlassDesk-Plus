@@ -11,10 +11,12 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using GlassDesk.Core.Models.Settings;
 using GlassDesk.UI.Controls;
 using GlassDesk.UI.Settings;
+using GlassDesk.UI.Theming;
 
 namespace GlassDesk.Dock;
 
@@ -26,6 +28,16 @@ public partial class DockWindow
     private readonly Dictionary<WidgetKind, WidgetVisual> _widgetVisuals = [];
     private bool _widgetsInitialized;
     private WidgetKind? _activePanelKind;
+
+    // 面板展开/收起的动画状态。只动 Opacity 与这个缩放——两者都不参与布局，
+    // 因此不会引起逐帧重排（Dock 是分层玻璃窗口，逐帧改尺寸会非常卡）。
+    private readonly ScaleTransform _widgetPanelScale = new(1, 1);
+    private int _widgetPanelReveal;
+
+    /// <summary>收起时的缩放：面板从略小长到原大小，手感接近系统控制中心。</summary>
+    private const double WidgetPanelRestScale = .94;
+    private static readonly Duration WidgetPanelRevealDuration = new(TimeSpan.FromMilliseconds(220));
+    private static readonly Duration WidgetPanelHideDuration = new(TimeSpan.FromMilliseconds(140));
 
     // 备忘录和待办数据持久化
     private static readonly string NotesPath = GetSettingsPath("notes.json");
@@ -118,6 +130,10 @@ public partial class DockWindow
     {
         if (_widgetsInitialized) return;
         _widgetsInitialized = true;
+
+        // 面板从底部中心长出（贴着 Dock 往上展开），并挂上动画用的缩放。
+        DockWidgetPanel.RenderTransformOrigin = new Point(.5, 1);
+        DockWidgetPanel.RenderTransform = _widgetPanelScale;
 
         var panel = new StackPanel
         {
@@ -268,14 +284,98 @@ public partial class DockWindow
         _activePanelKind = visual.Kind;
         DockWidgetPanel.Content = BuildWidgetPanel(visual);
         DockWidgetPanel.Visibility = Visibility.Visible;
+        RevealWidgetPanel(force);
+    }
+
+    /// <summary>
+    /// 面板展开：淡入 + 由略小放大到原大小。
+    /// </summary>
+    /// <remarks>
+    /// 原先只是把 Visibility 置为 Visible，面板"啪"地出现，与系统控制中心那种
+    /// 柔和展开的手感差很远。
+    /// <para>
+    /// <paramref name="force"/> 是"内容重绘但不该重播动画"（每 500ms 的刷新路径走它），
+    /// 那时保持当前状态不动；关闭动画时也不重播。
+    /// </para>
+    /// </remarks>
+    private void RevealWidgetPanel(bool force)
+    {
+        // 递增即作废上一次"收起"的收尾动作：收起动画还没播完就又点开时，
+        // 那次的 Completed 不能把刚展开的面板收掉。
+        ++_widgetPanelReveal;
+
+        if (ThemeService.Current?.AnimationsEnabled == false)
+        {
+            SettleWidgetPanel();
+            return;
+        }
+
+        if (force)
+        {
+            return;
+        }
+
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+
+        DockWidgetPanel.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, WidgetPanelRevealDuration)
+        {
+            EasingFunction = ease,
+        });
+
+        // 轻微回弹让"长出来"的感觉更接近控制中心；幅度刻意很小，大了会看到边缘抖动。
+        var spring = new BackEase { Amplitude = .12, EasingMode = EasingMode.EaseOut };
+        _widgetPanelScale.BeginAnimation(ScaleTransform.ScaleXProperty,
+            new DoubleAnimation(WidgetPanelRestScale, 1, WidgetPanelRevealDuration) { EasingFunction = spring });
+        _widgetPanelScale.BeginAnimation(ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(WidgetPanelRestScale, 1, WidgetPanelRevealDuration) { EasingFunction = spring });
+    }
+
+    /// <summary>把面板立即置于"完全展开、无动画"的状态。</summary>
+    private void SettleWidgetPanel()
+    {
+        DockWidgetPanel.BeginAnimation(UIElement.OpacityProperty, null);
+        DockWidgetPanel.Opacity = 1;
+        _widgetPanelScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        _widgetPanelScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        _widgetPanelScale.ScaleX = _widgetPanelScale.ScaleY = 1;
     }
 
     private void CloseWidgetPanel()
     {
         _activePanelKind = null;
         _editingNoteId = null;
+
+        if (ThemeService.Current?.AnimationsEnabled == false || DockWidgetPanel.Visibility != Visibility.Visible)
+        {
+            FinishCloseWidgetPanel();
+            return;
+        }
+
+        // 收起：淡出 + 略微缩回去，动画结束后才真正移除内容。
+        // token 用来作废这一次收尾——期间用户又点开别的面板时，不能把新面板收掉。
+        var token = ++_widgetPanelReveal;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+        var fade = new DoubleAnimation(1, 0, WidgetPanelHideDuration) { EasingFunction = ease };
+        fade.Completed += (_, _) =>
+        {
+            if (token == _widgetPanelReveal)
+            {
+                FinishCloseWidgetPanel();
+            }
+        };
+
+        DockWidgetPanel.BeginAnimation(UIElement.OpacityProperty, fade);
+        _widgetPanelScale.BeginAnimation(ScaleTransform.ScaleXProperty,
+            new DoubleAnimation(1, WidgetPanelRestScale, WidgetPanelHideDuration) { EasingFunction = ease });
+        _widgetPanelScale.BeginAnimation(ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(1, WidgetPanelRestScale, WidgetPanelHideDuration) { EasingFunction = ease });
+    }
+
+    private void FinishCloseWidgetPanel()
+    {
         DockWidgetPanel.Content = null;
         DockWidgetPanel.Visibility = Visibility.Collapsed;
+        SettleWidgetPanel();
     }
 
     /// <summary>构建小组件内联面板 UI（iOS 控制中心风格：大圆角半透明毛玻璃卡片）。</summary>
