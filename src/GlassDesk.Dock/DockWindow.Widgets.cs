@@ -283,8 +283,46 @@ public partial class DockWindow
     {
         _activePanelKind = visual.Kind;
         DockWidgetPanel.Content = BuildWidgetPanel(visual);
-        DockWidgetPanel.Visibility = Visibility.Visible;
-        RevealWidgetPanel(force);
+
+        if (force)
+        {
+            // 内容重绘（每 500ms 的刷新走这条）：面板已经开着，直接保持可见、不重播动画。
+            DockWidgetPanel.Visibility = Visibility.Visible;
+            return;
+        }
+
+        // 与启动台同样的顺序：**先把布局与材质备好，再开始动画**。
+        // Dock 是 SizeToContent 窗口，面板一显示窗口就会长高，而玻璃材质是异步捕获的——
+        // 动画若紧跟着开始，就会和"窗口尺寸变化 + 材质捕获"抢同一帧，观感是掉帧。
+        // 所以先以 Hidden 参与布局（Hidden 仍占位，窗口照常长高，但不绘制），
+        // 请玻璃面按新形状重出一帧，等两轮渲染落定后再显示并播放动画。
+        DockWidgetPanel.Visibility = Visibility.Hidden;
+        PrepareWidgetPanelReveal(++_widgetPanelReveal);
+    }
+
+    /// <summary>让布局与玻璃材质先就位，随后再播放展开动画。</summary>
+    private void PrepareWidgetPanelReveal(int token)
+    {
+        GlassSurface.RequestBackdropRefresh(revealing: true);
+
+        Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+        {
+            if (token != _widgetPanelReveal)
+            {
+                return;
+            }
+
+            Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+            {
+                if (token != _widgetPanelReveal)
+                {
+                    return;
+                }
+
+                DockWidgetPanel.Visibility = Visibility.Visible;
+                RevealWidgetPanel(force: false);
+            }));
+        }));
     }
 
     /// <summary>
