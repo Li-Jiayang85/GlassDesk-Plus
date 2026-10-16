@@ -45,6 +45,15 @@ public sealed class WidgetSettings
     /// <summary>刷新频率（毫秒）。</summary>
     public int RefreshIntervalMs { get; set; } = 1800000;
 
+    /// <summary>
+    /// 天气小组件的城市/区（留空表示按 IP 自动定位）。
+    /// </summary>
+    /// <remarks>
+    /// 之前城市只存在于运行期字段里，重启就丢，手动选过也留不住。
+    /// 落到设置里之后启动时会自动填写，并优先使用它。
+    /// </remarks>
+    public string WeatherLocation { get; set; } = "";
+
     /// <summary>创建某个小组件的默认配置。</summary>
     public static WidgetSettings CreateDefault(WidgetKind kind) => new()
     {
@@ -53,5 +62,6 @@ public sealed class WidgetSettings
         Size = 1.0,
         DockDocked = true,
         RefreshIntervalMs = 1800000,
+        WeatherLocation = "",
     };
 }

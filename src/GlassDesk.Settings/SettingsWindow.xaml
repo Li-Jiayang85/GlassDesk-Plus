@@ -1,4 +1,4 @@
-﻿<controls:GlassWindow
+<controls:GlassWindow
     x:Class="GlassDesk.Settings.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -380,6 +380,13 @@
                   <ComboBoxItem Content="10 秒" />
                   <ComboBoxItem Content="30 秒" />
                 </ComboBox>
+              </DockPanel>
+              <DockPanel Margin="0,6,0,0">
+                <TextBlock Text="城市 / 区" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <TextBox x:Name="WidgetWeatherCityBox" MinWidth="180" IsEnabled="False"
+                         ToolTip="例如：天河区、广州 天河；留空则按 IP 自动定位"
+                         AutomationProperties.Name="天气城市或区"
+                         LostFocus="OnWidgetsControlChanged" />
               </DockPanel>
               <TextBlock Margin="0,10,0,4" FontWeight="SemiBold" Text="音频播放控制" />
               <CheckBox x:Name="WidgetAudioEnabledCheck" Margin="0,0,0,4" Content="启用音频播放控制小组件"

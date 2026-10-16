@@ -8,6 +8,11 @@ public partial class DockWindow
     private FullscreenWatcher? _fullscreenWatchdog;
     private bool _hiddenByFullscreen;
 
+    /// <summary>退出全屏后的稳定等待期；期间任何一次"又全屏了"都会重新计时。</summary>
+    private static readonly TimeSpan FullscreenRestoreDelay = TimeSpan.FromMilliseconds(700);
+
+    private DispatcherTimer? _fullscreenRestoreTimer;
+
     /// <summary>
     /// 全屏让位看门狗：全屏应用出现在前台时把程序坞收走，退出全屏后再恢复。
     /// </summary>
@@ -31,6 +36,14 @@ public partial class DockWindow
             return;
         }
 
+        // 退出全屏的恢复要延迟并二次确认——理由见 RestoreAfterFullscreen。
+        _fullscreenRestoreTimer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = FullscreenRestoreDelay };
+        _fullscreenRestoreTimer.Tick += (_, _) =>
+        {
+            _fullscreenRestoreTimer?.Stop();
+            RestoreAfterFullscreen();
+        };
+
         _fullscreenWatchdog = FullscreenWatcher.TryStart(OnFullscreenChanged, FullscreenOptions.Default);
 
         // 启动时可能已经处于全屏（例如从全屏应用里切过来重启外壳），先对齐一次当前状态。
@@ -41,6 +54,8 @@ public partial class DockWindow
     {
         _fullscreenWatchdog?.Dispose();
         _fullscreenWatchdog = null;
+        _fullscreenRestoreTimer?.Stop();
+        _fullscreenRestoreTimer = null;
     }
 
     private void OnFullscreenChanged(bool fullscreen)
@@ -76,6 +91,27 @@ public partial class DockWindow
         }
 
         if (!_hiddenByFullscreen)
+        {
+            return;
+        }
+
+        // **不要立刻弹回来。** 全屏应用切前台、弹出自己的菜单、系统弹 UAC 提示，都会让
+        // 监视器瞬时报一次"非全屏"；立刻 Show 就是用户看到的"全屏时莫名弹一下"。
+        // 性能策略自己有 300 ms 稳定判定，这里同样等状态稳定，到期后再确认真实状态。
+        _fullscreenRestoreTimer?.Stop();
+        _fullscreenRestoreTimer?.Start();
+    }
+
+    /// <summary>等状态稳定后恢复程序坞；恢复前再确认一次当前确实不在全屏。</summary>
+    private void RestoreAfterFullscreen()
+    {
+        if (!_hiddenByFullscreen)
+        {
+            return;
+        }
+
+        // 期间又切回全屏（迟到的状态变化）时不恢复——让下一轮去抖重新计时。
+        if (FullscreenDetector.IsFullscreenActive())
         {
             return;
         }

@@ -35,6 +35,12 @@ public partial class SettingsWindow
                 WidgetMonitorEnabledCheck, WidgetMonitorSizeSlider, WidgetMonitorDockCheck, WidgetMonitorRefreshCombo, enabled, current, WidgetRefreshOptions);
             LoadWidgetControls(WidgetKind.Weather,
                 WidgetWeatherEnabledCheck, WidgetWeatherSizeSlider, WidgetWeatherDockCheck, WidgetWeatherRefreshCombo, enabled, current, WidgetSlowRefreshOptions);
+            // 天气城市：存在设置里，启动时自动填写（留空则按 IP 自动定位）。
+            if (WidgetWeatherCityBox is not null)
+            {
+                WidgetWeatherCityBox.Text = current?.Widgets.FirstOrDefault(w => w.Kind == WidgetKind.Weather)?.WeatherLocation ?? "";
+                WidgetWeatherCityBox.IsEnabled = enabled;
+            }
             LoadWidgetControls(WidgetKind.AudioPlayer,
                 WidgetAudioEnabledCheck, WidgetAudioSizeSlider, WidgetAudioDockCheck, null, enabled, current, WidgetRefreshOptions);
             LoadWidgetControls(WidgetKind.Notes,
@@ -151,7 +157,8 @@ public partial class SettingsWindow
                 BuildWidget(WidgetKind.SystemMonitor,
                     WidgetMonitorEnabledCheck, WidgetMonitorSizeSlider, WidgetMonitorDockCheck, WidgetMonitorRefreshCombo, WidgetRefreshOptions),
                 BuildWidget(WidgetKind.Weather,
-                    WidgetWeatherEnabledCheck, WidgetWeatherSizeSlider, WidgetWeatherDockCheck, WidgetWeatherRefreshCombo, WidgetSlowRefreshOptions),
+                    WidgetWeatherEnabledCheck, WidgetWeatherSizeSlider, WidgetWeatherDockCheck, WidgetWeatherRefreshCombo, WidgetSlowRefreshOptions,
+                    WidgetWeatherCityBox?.Text.Trim() ?? ""),
                 BuildWidget(WidgetKind.AudioPlayer,
                     WidgetAudioEnabledCheck, WidgetAudioSizeSlider, WidgetAudioDockCheck, null, WidgetRefreshOptions),
                 BuildWidget(WidgetKind.Notes,
@@ -178,7 +185,8 @@ public partial class SettingsWindow
     }
 
     private static WidgetSettings BuildWidget(WidgetKind kind,
-        CheckBox enabledCheck, Slider sizeSlider, CheckBox dockCheck, ComboBox? refreshCombo, int[] refreshOptions) => new()
+        CheckBox enabledCheck, Slider sizeSlider, CheckBox dockCheck, ComboBox? refreshCombo, int[] refreshOptions,
+        string weatherLocation = "") => new()
     {
         Kind = kind,
         Enabled = enabledCheck.IsChecked == true,
@@ -187,5 +195,7 @@ public partial class SettingsWindow
         RefreshIntervalMs = refreshCombo is null
             ? refreshOptions[0]
             : refreshOptions[Math.Clamp(refreshCombo.SelectedIndex, 0, refreshOptions.Length - 1)],
+        // 只有天气会传进来，其它小组件恒为空串。
+        WeatherLocation = weatherLocation,
     };
 }
