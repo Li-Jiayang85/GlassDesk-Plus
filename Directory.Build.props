@@ -26,9 +26,9 @@
       本分支（GlassDesk Plus）自 1.0 起独立编号：关于页显示的版本、以及更新检查
       与 GitHub Release 比较用的版本，都取自这里。
     -->
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.2.0</FileVersion>
+    <FileVersion>1.0.3.0</FileVersion>
     <NeutralLanguage>zh-Hans</NeutralLanguage>
 
     <EnableNETAnalyzers>true</EnableNETAnalyzers>

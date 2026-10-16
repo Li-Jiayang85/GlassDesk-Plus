@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -1304,7 +1304,13 @@ public partial class DockWindow
             if (!_weatherLocateStarted)
             {
                 _weatherLocateStarted = true;
-                await LocateCityAsync();
+                // 设置里存了城市就优先用它（重启后自动填写）；留空或解析失败才按 IP 自动定位。
+                var savedCity = WidgetSettingsHost.Current?.Items
+                    .FirstOrDefault(w => w.Kind == WidgetKind.Weather)?.WeatherLocation ?? "";
+                if (string.IsNullOrWhiteSpace(savedCity) || !await TryLocateWithPhotonAsync(savedCity))
+                {
+                    await LocateCityAsync();
+                }
             }
             if (_weatherLat == 0 && _weatherLon == 0)
             {
