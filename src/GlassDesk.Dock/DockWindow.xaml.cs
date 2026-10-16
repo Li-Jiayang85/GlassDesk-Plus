@@ -1541,6 +1541,7 @@ public partial class DockWindow : GlassWindow
     {
         _frameTimer?.Stop();
         StopFullscreenWatchdog();
+        _windowClosed = true;
         _failureNoticeTimer?.Stop();
         _widgetsTimer?.Stop();
         if (WidgetSettingsHost.Current is not null)

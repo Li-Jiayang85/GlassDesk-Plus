@@ -34,8 +34,16 @@ public partial class DockWindow
     private readonly ScaleTransform _widgetPanelScale = new(1, 1);
     private int _widgetPanelReveal;
 
+    // 小组件面板现在是独立弹窗（见 WidgetPopupWindow）：Dock 自身不再改变尺寸，
+    // 所以既没有"长高"的跳动，也不打扰 Dock 的玻璃捕获。
+    // Dock 里那个内联面板元素保留但永不显示——它承载的内容构建函数仍被弹窗复用。
+    private WidgetPopupWindow? _widgetPopup;
+
     /// <summary>收起时的缩放：面板从略小长到原大小，手感接近系统控制中心。</summary>
     private const double WidgetPanelRestScale = .94;
+
+    /// <summary>面板展开后的高度上限，与 XAML 里的 MaxHeight 一致；展开动画以它为目标值。</summary>
+    private const double WidgetPanelMaxHeightDip = 340;
     private static readonly Duration WidgetPanelRevealDuration = new(TimeSpan.FromMilliseconds(220));
     private static readonly Duration WidgetPanelHideDuration = new(TimeSpan.FromMilliseconds(140));
 
@@ -50,7 +58,24 @@ public partial class DockWindow
     private DateTime _lastCpuSampleTime;
     private long _lastCpuIdle, _lastCpuKernel, _lastCpuUser;
 
-    private static readonly HttpClient WeatherHttp = new() { Timeout = TimeSpan.FromSeconds(6) };
+    /// <summary>
+    /// 天气数据与地理编码共用的客户端。
+    /// </summary>
+    /// <remarks>
+    /// **必须带 User-Agent**：地理编码用的是 nominatim，它的使用政策要求请求方标识自己，
+    /// 缺了这个头会被直接拒绝——这正是"输入城市却一直定位不过去"的原因。
+    /// Accept-Language 让地名按中文返回；超时放宽到 8 秒（地理编码比天气接口慢）。
+    /// </remarks>
+    private static readonly HttpClient WeatherHttp = CreateWeatherHttp();
+
+    private static HttpClient CreateWeatherHttp()
+    {
+        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "GlassDeskPlus/1.0 (+https://github.com/Li-Jiayang85/GlassDesk-Plus)");
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("zh-CN,zh;q=0.9,en;q=0.8");
+        return client;
+    }
     private WeatherSnapshot _weather = new();
     private bool _weatherFetching;
     private bool _weatherLocateStarted;
@@ -61,7 +86,9 @@ public partial class DockWindow
     {
         public required WidgetKind Kind { get; init; }
         public required Button Host { get; init; }
-        public MediaControlButtons? MediaControls { get; init; }
+        // 可写：面板内容每次重建都会新建一批按钮（不能跨次复用元素实例，见 BuildAudioBody），
+        // 状态刷新要作用到"当前这一批"上。
+        public MediaControlButtons? MediaControls { get; set; }
         public WidgetSettings? Settings { get; set; }
         public DateTime NextRefreshUtc { get; set; } = DateTime.MinValue;
     }
@@ -170,25 +197,12 @@ public partial class DockWindow
                 Visibility = Visibility.Collapsed,
             };
 
-            MediaControlButtons? controls = null;
-            if (kind == WidgetKind.AudioPlayer)
-            {
-                controls = new MediaControlButtons
-                {
-                    Prev = new Button { Content = "⏮", Width = 40, Height = 30, Margin = new Thickness(0, 0, 8, 0), IsEnabled = false },
-                    Play = new Button { Content = "▶", Width = 48, Height = 30, Margin = new Thickness(0, 0, 8, 0), IsEnabled = false },
-                    Next = new Button { Content = "⏭", Width = 40, Height = 30, IsEnabled = false },
-                };
-                controls.Prev.Click += async (_, _) => await MediaPreviousAsync();
-                controls.Play.Click += async (_, _) => await MediaPlayPauseAsync();
-                controls.Next.Click += async (_, _) => await MediaNextAsync();
-            }
-
+            // 音频控制按钮不在这里创建：面板内容每次重建都要新建一批，
+            // 跨次复用同一个元素实例会在第二次挂载时抛异常（详见 BuildAudioBody）。
             var visual = new WidgetVisual
             {
                 Kind = kind,
                 Host = host,
-                MediaControls = controls,
             };
             host.Click += (_, _) => ToggleWidgetPanel(visual);
 
@@ -205,7 +219,18 @@ public partial class DockWindow
         {
             widgetHost.Changed += OnWidgetSettingsChanged;
         }
-        _widgetsTimer.Tick += (_, _) => TickWidgets();
+        // 定时器 Tick 里逃出的异常会直接崩掉进程，而音频/天气的数据源来自系统组件、
+        // 随时可能失效，所以在这里整体兜住。
+        _widgetsTimer.Tick += (_, _) =>
+        {
+            try
+            {
+                TickWidgets();
+            }
+            catch (Exception)
+            {
+            }
+        };
         IsVisibleChanged += (_, _) => UpdateWidgetTimerState();
         PerformanceSurfaceVisibilityChanged += (_, _) => UpdateWidgetTimerState();
 
@@ -281,48 +306,84 @@ public partial class DockWindow
     /// <summary>在内联面板区渲染指定小组件的交互内容。</summary>
     private void ShowWidgetPanel(WidgetVisual visual, bool force = false)
     {
-        _activePanelKind = visual.Kind;
-        DockWidgetPanel.Content = BuildWidgetPanel(visual);
-
-        if (force)
+        Border content;
+        try
         {
-            // 内容重绘（每 500ms 的刷新走这条）：面板已经开着，直接保持可见、不重播动画。
-            DockWidgetPanel.Visibility = Visibility.Visible;
+            content = BuildWidgetPanel(visual);
+        }
+        catch (Exception)
+        {
+            // 构建面板内容失败（例如踩到 WPF 的元素复用约束）不该终结整个程序：
+            // 音频面板曾因此在"关闭后再次打开"时闪退。这里降级为"没有打开"。
+            _activePanelKind = null;
             return;
         }
 
-        // 与启动台同样的顺序：**先把布局与材质备好，再开始动画**。
-        // Dock 是 SizeToContent 窗口，面板一显示窗口就会长高，而玻璃材质是异步捕获的——
-        // 动画若紧跟着开始，就会和"窗口尺寸变化 + 材质捕获"抢同一帧，观感是掉帧。
-        // 所以先以 Hidden 参与布局（Hidden 仍占位，窗口照常长高，但不绘制），
-        // 请玻璃面按新形状重出一帧，等两轮渲染落定后再显示并播放动画。
-        DockWidgetPanel.Visibility = Visibility.Hidden;
-        PrepareWidgetPanelReveal(++_widgetPanelReveal);
+        _activePanelKind = visual.Kind;
+
+        // 面板改由独立弹窗承载：Dock 的尺寸全程不变，因此没有跳动，玻璃也不受扰动。
+        if (_widgetPopup is { } open && open.IsVisible)
+        {
+            // 已经开着：切换小组件或每 500ms 的内容刷新——就地换内容，不重播动画。
+            // 用户点了另一个图标时锚点也要跟着换，否则面板还停在旧图标上方（看着像"跑偏"）。
+            open.SetContent(content);
+            if (!force)
+            {
+                open.ReanchorTo(visual.Host);
+            }
+
+            return;
+        }
+
+        var popup = new WidgetPopupWindow();
+        popup.SetContent(content);
+        popup.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_widgetPopup, popup))
+            {
+                _widgetPopup = null;
+            }
+        };
+
+        _widgetPopup = popup;
+        // 弹窗自己负责"先备材质、再显示并展开"这套顺序（与启动台一致），
+        // 定位所需的换算也由它用窗口自己的设备变换完成。
+        popup.RevealAbove(visual.Host, animate: !force);
     }
 
-    /// <summary>让布局与玻璃材质先就位，随后再播放展开动画。</summary>
-    private void PrepareWidgetPanelReveal(int token)
+    /// <summary>把面板高度从 0 动画到展开，让整个 Dock 向上延伸、下半部分保持不动。</summary>
+    private void RevealWidgetPanelHeight(int token)
     {
+        DockWidgetPanel.BeginAnimation(FrameworkElement.MaxHeightProperty, null);
+        DockWidgetPanel.MaxHeight = 0;
+
+        // 新尺寸的玻璃要重出一帧；几何是逐帧变化的，捕获坐标也随之更新。
         GlassSurface.RequestBackdropRefresh(revealing: true);
 
-        Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+        if (ThemeService.Current?.AnimationsEnabled == false)
+        {
+            DockWidgetPanel.MaxHeight = WidgetPanelMaxHeightDip;
+            return;
+        }
+
+        var grow = new DoubleAnimation(0, WidgetPanelMaxHeightDip, WidgetPanelRevealDuration)
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        grow.Completed += (_, _) =>
         {
             if (token != _widgetPanelReveal)
             {
                 return;
             }
 
-            Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
-            {
-                if (token != _widgetPanelReveal)
-                {
-                    return;
-                }
+            // 交还自适应高度：留着固定值会让后续内容变高变矮时不再跟着变。
+            DockWidgetPanel.BeginAnimation(FrameworkElement.MaxHeightProperty, null);
+            DockWidgetPanel.MaxHeight = WidgetPanelMaxHeightDip;
+        };
 
-                DockWidgetPanel.Visibility = Visibility.Visible;
-                RevealWidgetPanel(force: false);
-            }));
-        }));
+        DockWidgetPanel.BeginAnimation(FrameworkElement.MaxHeightProperty, grow);
+        RevealWidgetPanel(force: false);
     }
 
     /// <summary>
@@ -383,18 +444,27 @@ public partial class DockWindow
         _activePanelKind = null;
         _editingNoteId = null;
 
+        // 弹窗负责收起动画与关窗；Dock 里的内联面板从未显示过，
+        // 所以下面的分支会立刻走到收尾（不播动画）。
+        _widgetPopup?.CloseAnimated();
+        _widgetPopup = null;
+
         if (ThemeService.Current?.AnimationsEnabled == false || DockWidgetPanel.Visibility != Visibility.Visible)
         {
             FinishCloseWidgetPanel();
             return;
         }
 
-        // 收起：淡出 + 略微缩回去，动画结束后才真正移除内容。
-        // token 用来作废这一次收尾——期间用户又点开别的面板时，不能把新面板收掉。
+        // 收起：高度收回去（Dock 随之向下缩短），卡片同时淡出。
+        // 收尾挂在**高度动画**的 Completed 上——它才是几何结束的时刻；
+        // token 用来作废这一次收尾：期间用户又点开别的面板时，不能把新面板收掉。
         var token = ++_widgetPanelReveal;
         var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
-        var fade = new DoubleAnimation(1, 0, WidgetPanelHideDuration) { EasingFunction = ease };
-        fade.Completed += (_, _) =>
+        var shrink = new DoubleAnimation(DockWidgetPanel.MaxHeight, 0, WidgetPanelHideDuration)
+        {
+            EasingFunction = ease,
+        };
+        shrink.Completed += (_, _) =>
         {
             if (token == _widgetPanelReveal)
             {
@@ -402,17 +472,22 @@ public partial class DockWindow
             }
         };
 
-        DockWidgetPanel.BeginAnimation(UIElement.OpacityProperty, fade);
+        DockWidgetPanel.BeginAnimation(UIElement.OpacityProperty,
+            new DoubleAnimation(1, 0, WidgetPanelHideDuration) { EasingFunction = ease });
         _widgetPanelScale.BeginAnimation(ScaleTransform.ScaleXProperty,
             new DoubleAnimation(1, WidgetPanelRestScale, WidgetPanelHideDuration) { EasingFunction = ease });
         _widgetPanelScale.BeginAnimation(ScaleTransform.ScaleYProperty,
             new DoubleAnimation(1, WidgetPanelRestScale, WidgetPanelHideDuration) { EasingFunction = ease });
+        DockWidgetPanel.BeginAnimation(FrameworkElement.MaxHeightProperty, shrink);
     }
 
     private void FinishCloseWidgetPanel()
     {
         DockWidgetPanel.Content = null;
         DockWidgetPanel.Visibility = Visibility.Collapsed;
+        // 交还 XAML 里的上限，下一次展开从同一个起点开始。
+        DockWidgetPanel.BeginAnimation(FrameworkElement.MaxHeightProperty, null);
+        DockWidgetPanel.MaxHeight = WidgetPanelMaxHeightDip;
         SettleWidgetPanel();
     }
 
@@ -503,18 +578,20 @@ public partial class DockWindow
             Text = RenderWeatherDetail(),
         };
 
+        // 输入框与"手动定位"按钮是同一组控件，规格必须对齐：
+        // 同高 30、同字号 12、同圆角 8、各自留出内边距。原先输入框是 180 宽 + 字号 13 + 直角，
+        // 放在一个字号 12、圆角 8 的按钮旁边，既宽窄不称、圆角与字号也对不上。
+        // TextBox 自身画不出圆角，所以外面套一层 PhoneBorder（与按钮模板同一个控件），内层透明无边框。
+        // 交给主题：主题里本来就有 TextBox 的隐式样式（圆角 12、半透明白底、聚焦变蓝、
+        // 文字色随明暗主题）。之前这里自行覆盖底色/边框/字号，等于又造了第三套样式，
+        // 浅色主题下会显示不对。现在只保留布局属性。
         var cityInput = new TextBox
         {
-            Width = 180,
+            Width = 140,
             Height = 30,
-            FontSize = 13,
             VerticalContentAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 8, 0),
             ToolTip = "输入城市名，例如：广州",
-            Background = new SolidColorBrush(Color.FromArgb(255, 50, 52, 58)),
-            Foreground = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 120, 124, 135)),
-            BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 0, 8, 0),
         };
         var locateBtn = new Button
         {
@@ -570,40 +647,153 @@ public partial class DockWindow
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 12, 0, 0),
         };
-        if (visual.MediaControls is { } mc)
+        // 每次重建面板都新建这批按钮。
+        //
+        // 这里**绝不能**复用 visual.MediaControls 里的实例：关闭面板只是把内容树摘下，
+        // 按钮的逻辑父级仍指向旧的行容器；第二次 Add 到新父级会抛
+        // InvalidOperationException（元素已是另一个元素的逻辑子级）。
+        // 而这个异常是在小组件图标的同步 Click 处理器里抛出的，会直接终结进程——
+        // 这就是"打开音频面板 → 关闭 → 再打开就闪退"的原因。
+        var mc = new MediaControlButtons
         {
-            // 圆形毛玻璃控制按钮：播放键蓝色高亮，与 iOS 控制中心一致
-            mc.Prev.Width = 40; mc.Prev.Height = 40; mc.Prev.FontSize = 16;
-            mc.Prev.Padding = new Thickness(0);
-            mc.Prev.Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
-            mc.Prev.BorderThickness = new Thickness(0);
-            mc.Prev.Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 224, 235));
-            ApplyRoundedChrome(mc.Prev, 20);
-            mc.Prev.Margin = new Thickness(0, 0, 14, 0);
-            row.Children.Add(mc.Prev);
+            Prev = new Button { Content = "⏮" },
+            Play = new Button { Content = "▶" },
+            Next = new Button { Content = "⏭" },
+        };
+        // async void 的事件处理器里只要逃出一个异常就会崩掉整个进程，
+        // 而媒体会话随时可能失效，所以统一走带兜底的入口。
+        mc.Prev.Click += async (_, _) => await RunMediaCommandAsync(MediaPreviousAsync);
+        mc.Play.Click += async (_, _) => await RunMediaCommandAsync(MediaPlayPauseAsync);
+        mc.Next.Click += async (_, _) => await RunMediaCommandAsync(MediaNextAsync);
+        visual.MediaControls = mc;
 
-            mc.Play.Width = 52; mc.Play.Height = 52; mc.Play.FontSize = 24;
-            mc.Play.Padding = new Thickness(0);
-            mc.Play.BorderThickness = new Thickness(0);
-            ApplyRoundedChrome(mc.Play, 26);
-            mc.Play.Margin = new Thickness(0, 0, 14, 0);
-            mc.Play.Foreground = Brushes.White;
-            mc.Play.Background = _media.HasSession
-                ? new SolidColorBrush(Color.FromArgb(255, 64, 128, 255))
-                : new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
-            row.Children.Add(mc.Play);
+        // 圆形毛玻璃控制按钮：播放键蓝色高亮，与 iOS 控制中心一致
+        mc.Prev.Width = 40; mc.Prev.Height = 40; mc.Prev.FontSize = 16;
+        mc.Prev.Padding = new Thickness(0);
+        mc.Prev.Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
+        mc.Prev.BorderThickness = new Thickness(0);
+        mc.Prev.Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 224, 235));
+        ApplyRoundedChrome(mc.Prev, 20);
+        mc.Prev.Margin = new Thickness(0, 0, 14, 0);
+        row.Children.Add(mc.Prev);
 
-            mc.Next.Width = 40; mc.Next.Height = 40; mc.Next.FontSize = 16;
-            mc.Next.Padding = new Thickness(0);
-            mc.Next.Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
-            mc.Next.BorderThickness = new Thickness(0);
-            mc.Next.Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 224, 235));
-            ApplyRoundedChrome(mc.Next, 20);
-            row.Children.Add(mc.Next);
+        mc.Play.Width = 52; mc.Play.Height = 52; mc.Play.FontSize = 24;
+        mc.Play.Padding = new Thickness(0);
+        mc.Play.BorderThickness = new Thickness(0);
+        ApplyRoundedChrome(mc.Play, 26);
+        mc.Play.Margin = new Thickness(0, 0, 14, 0);
+        mc.Play.Foreground = Brushes.White;
+        mc.Play.Background = _media.HasSession
+            ? new SolidColorBrush(Color.FromArgb(255, 64, 128, 255))
+            : new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
+        row.Children.Add(mc.Play);
+
+        mc.Next.Width = 40; mc.Next.Height = 40; mc.Next.FontSize = 16;
+        mc.Next.Padding = new Thickness(0);
+        mc.Next.Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
+        mc.Next.BorderThickness = new Thickness(0);
+        mc.Next.Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 224, 235));
+        ApplyRoundedChrome(mc.Next, 20);
+        row.Children.Add(mc.Next);
+
+        // 音量：滑杆（系统主音量，走 Core Audio）+ 静音按钮。
+        // 静音沿用系统音量键（零新增互操作）；滑杆必须能读回当前音量，所以只能用 COM。
+        var muteBtn = new Button
+        {
+            Content = "🔇",
+            Width = 32,
+            Height = 32,
+            FontSize = 13,
+            Padding = new Thickness(0),
+            Margin = new Thickness(12, 0, 8, 0),
+            Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+            BorderThickness = new Thickness(0),
+            Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 224, 235)),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = "静音 / 取消静音",
+        };
+        ApplyRoundedChrome(muteBtn, 16);
+        muteBtn.Click += (_, _) => TapVolumeKey(VolumeMuteKey);
+
+        var volumeSlider = new Slider
+        {
+            Width = 132,
+            Minimum = 0,
+            Maximum = 100,
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "系统音量",
+            IsMoveToPointEnabled = true,
+        };
+        if (TryGetMasterVolume(out var currentVolume))
+        {
+            // 只在读得到的时候设初值；读不到就停在 0，避免显示一个假音量。
+            volumeSlider.Value = Math.Round(currentVolume * 100);
         }
 
+        // 拖动时写入系统音量；程序化设值（上面那一步）不写回。
+        var applyingVolume = false;
+        volumeSlider.ValueChanged += (_, e) =>
+        {
+            if (applyingVolume)
+            {
+                return;
+            }
+
+            applyingVolume = true;
+            try
+            {
+                TrySetMasterVolume((float)(e.NewValue / 100d));
+            }
+            finally
+            {
+                applyingVolume = false;
+            }
+        };
+
+        row.Children.Add(muteBtn);
+        row.Children.Add(volumeSlider);
+
+        // 新按钮的可用状态按当前快照对齐（原来靠创建时的 IsEnabled = false 兜着）。
+        UpdateMediaButtons();
+
+        // 专辑封面与专辑名：封面来自 SMTC（见 RefreshMediaSessionAsync，按曲目缓存，
+        // 只有切歌时才重新解码）。没有封面/专辑时这两块都不加，布局与原来完全一致。
+        var textColumn = new StackPanel { Orientation = Orientation.Vertical };
+        textColumn.Children.Add(info);
+        if (!string.IsNullOrWhiteSpace(_media.Album))
+        {
+            textColumn.Children.Add(new TextBlock
+            {
+                Text = _media.Album,
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromArgb(255, 168, 172, 184)),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 4, 0, 0),
+            });
+        }
+
+        var head = new DockPanel();
+        if (_media.Cover is { } cover)
+        {
+            // 圆角用 Clip 实现：UniformToFill 会稍微溢出 72×72 的框，正好被圆角裁掉。
+            var artwork = new Image
+            {
+                Width = 72,
+                Height = 72,
+                Stretch = Stretch.UniformToFill,
+                Source = cover,
+                Margin = new Thickness(0, 0, 12, 0),
+                VerticalAlignment = VerticalAlignment.Top,
+                Clip = new RectangleGeometry(new Rect(0, 0, 72, 72), 10, 10),
+            };
+            DockPanel.SetDock(artwork, System.Windows.Controls.Dock.Left);
+            head.Children.Add(artwork);
+        }
+
+        head.Children.Add(textColumn);
+
         var stack = new StackPanel { Orientation = Orientation.Vertical };
-        stack.Children.Add(info);
+        stack.Children.Add(head);
         stack.Children.Add(row);
         return stack;
     }
@@ -682,19 +872,25 @@ public partial class DockWindow
             list.Children.Add(item);
         }
 
+        // 编辑区改为**纵向**排布。
+        //
+        // 原先标题、内容、按钮挤在同一个横向行里：标签≈40 + 输入框 220 + 标签≈45 + 输入框 220 + 按钮≈80
+        // ≈ 605 DIP，而卡片宽度上限是 440，横向 StackPanel 又不会换行——右侧控件必然被裁掉。
+        //
+        // 同时把字号/圆角/内边距与卡片里其它输入框统一：字号 12、圆角 8（PhoneBorder 外壳）、
+        // 文字内缩 8，标题框高度对齐按钮的 30。
+        // 交给主题（隐式 TextBox 样式负责圆角、底色、聚焦高亮与明暗跟随），只留布局属性。
         var titleInput = new TextBox
         {
-            Width = 220,
-            Height = 24,
-            FontSize = 13,
+            Width = 260,
+            Height = 30,
             VerticalContentAlignment = VerticalAlignment.Center,
             ToolTip = "标题",
         };
         var contentInput = new TextBox
         {
-            Width = 220,
-            Height = 48,
-            FontSize = 13,
+            Width = 260,
+            Height = 64,
             TextWrapping = TextWrapping.Wrap,
             VerticalContentAlignment = VerticalAlignment.Top,
             AcceptsReturn = true,
@@ -718,12 +914,20 @@ public partial class DockWindow
             RefreshNotesPanel();
         };
 
-        var editRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-        editRow.Children.Add(new TextBlock { Text = "标题 ", FontSize = 12, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+        var saveRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        saveRow.Children.Add(saveBtn);
+
+        var editRow = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 6) };
+        editRow.Children.Add(new TextBlock { Text = "标题", FontSize = 12, Foreground = Brushes.White, Margin = new Thickness(0, 0, 0, 4) });
         editRow.Children.Add(titleInput);
-        editRow.Children.Add(new TextBlock { Text = " 内容 ", FontSize = 12, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+        editRow.Children.Add(new TextBlock { Text = "内容", FontSize = 12, Foreground = Brushes.White, Margin = new Thickness(0, 8, 0, 4) });
         editRow.Children.Add(contentInput);
-        editRow.Children.Add(saveBtn);
+        editRow.Children.Add(saveRow);
 
         var stack = new StackPanel { Orientation = Orientation.Vertical };
         stack.Children.Add(list);
@@ -782,17 +986,16 @@ public partial class DockWindow
             list.Children.Add(row);
         }
 
+        // 与天气/备忘统一规格：字号 12、圆角 8（PhoneBorder 外壳，和按钮模板同一个控件）、
+        // 文字内缩 8；高度 30 与"添加"按钮一致。宽度从 220 收到 200，与按钮的比例更协调。
+        // TextBox 自身画不出圆角，所以外面套一层，内层透明无边框。
         var input = new TextBox
         {
-            Width = 220,
+            Width = 200,
             Height = 30,
-            FontSize = 13,
             VerticalContentAlignment = VerticalAlignment.Center,
             ToolTip = "新待办内容",
-            Background = new SolidColorBrush(Color.FromArgb(255, 50, 52, 58)),
-            Foreground = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 120, 124, 135)),
-            BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 0, 8, 0),
         };
         var addBtn = new Button { Content = "添加", Height = 30, Padding = new Thickness(14, 0, 14, 0), FontSize = 12, Cursor = System.Windows.Input.Cursors.Hand, Background = new SolidColorBrush(Color.FromArgb(255, 64, 128, 255)), BorderThickness = new Thickness(0), Foreground = Brushes.White };
         ApplyRoundedChrome(addBtn, 8);
@@ -1196,23 +1399,74 @@ public partial class DockWindow
     {
         try
         {
+            // 首选 Photon（实测能解析到"区"），失败再退回下面的 Open-Meteo 地理编码——两者覆盖面互补。
+            if (await TryLocateWithPhotonAsync(city))
+            {
+                return;
+            }
+
+            // 用 Open-Meteo 的地理编码，而不是 nominatim：
+            // 天气数据本来就取自 api.open-meteo.com（在这台机器上可用），
+            // 而 nominatim.openstreetmap.org 这里直连超时——换了城市也永远等不到结果。
+            //
+            // **取 10 条候选再自己挑**，不能像原先那样 count=1 只拿第一条：
+            // 数据源把同名城市排在区的前面，输入"天河区"时会被同名城市抢走；
+            // 而且区级名称落在 admin2/admin3/admin4 上，只读 name/admin1 是看不到的。
             using var response = await WeatherHttp.GetAsync(
-                "https://nominatim.openstreetmap.org/search?q=" + Uri.EscapeDataString(city) + "&format=json&limit=1",
+                "https://geocoding-api.open-meteo.com/v1/search?name=" + Uri.EscapeDataString(city) + "&count=10&language=zh&format=json",
                 HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
-            if (root.GetArrayLength() > 0)
+            if (root.TryGetProperty("results", out var results)
+                && results.ValueKind == JsonValueKind.Array && results.GetArrayLength() > 0)
             {
-                var first = root[0];
-                if (first.TryGetProperty("lat", out var lat) && lat.ValueKind == JsonValueKind.Number
-                    && first.TryGetProperty("lon", out var lon) && lon.ValueKind == JsonValueKind.Number)
+                static bool Hit(JsonElement candidate, string field, string token) =>
+                    candidate.TryGetProperty(field, out var value)
+                    && value.ValueKind == JsonValueKind.String
+                    && value.GetString() is { Length: > 0 } text
+                    && text.Contains(token, StringComparison.Ordinal);
+
+                // 把输入按空格/逗号切开逐段比对：命中 name 记 3 分（说明就是这个地方本身），
+                // 命中某一级行政区记 1 分。得分最高者胜出，同分保持接口返回的顺序（即相关度）。
+                var tokens = city.Split([' ', ',', '，', '　'], StringSplitOptions.RemoveEmptyEntries);
+                var best = results[0];
+                var bestScore = -1;
+                foreach (var candidate in results.EnumerateArray())
+                {
+                    var score = 0;
+                    foreach (var token in tokens)
+                    {
+                        if (Hit(candidate, "name", token)) score += 3;
+                        else if (Hit(candidate, "admin1", token) || Hit(candidate, "admin2", token)
+                            || Hit(candidate, "admin3", token) || Hit(candidate, "admin4", token)) score += 1;
+                    }
+
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        best = candidate;
+                    }
+                }
+
+                if (best.TryGetProperty("latitude", out var lat) && lat.ValueKind == JsonValueKind.Number
+                    && best.TryGetProperty("longitude", out var lon) && lon.ValueKind == JsonValueKind.Number)
                 {
                     _weatherLat = lat.GetDouble();
                     _weatherLon = lon.GetDouble();
-                    var display = first.TryGetProperty("display_name", out var dn) ? dn.GetString() : "";
-                    _weatherLocation = string.IsNullOrWhiteSpace(display) ? city : display.Split(',')[0];
+                    var name = best.TryGetProperty("name", out var n) ? n.GetString() : "";
+                    // 标签优先带市一级（用户更熟悉），没有市就退回省。
+                    var city2 = best.TryGetProperty("admin2", out var a2) ? a2.GetString() : "";
+                    var province = best.TryGetProperty("admin1", out var a1) ? a1.GetString() : "";
+                    var label = string.IsNullOrWhiteSpace(name) ? city : name;
+                    var qualifier = !string.IsNullOrWhiteSpace(city2) ? city2 : province;
+                    if (!string.IsNullOrWhiteSpace(qualifier) && !string.Equals(qualifier, label, StringComparison.Ordinal))
+                    {
+                        label += $" {qualifier}";
+                    }
+
+                    _weatherLocation = label;
                     _weather = new WeatherSnapshot { Ready = false, Offline = false, Location = _weatherLocation, FetchedUtc = DateTime.UtcNow };
                     _weatherLocateStarted = true;
                     await RefreshWeatherAsync();
@@ -1249,9 +1503,19 @@ public partial class DockWindow
 
     private void UpdateMediaButtons()
     {
+        if (_windowClosed) return;
         if (!Dispatcher.CheckAccess())
         {
-            Dispatcher.BeginInvoke(UpdateMediaButtons);
+            // 调度器已关闭时 BeginInvoke 会抛，而本方法是从 finally 与定时器路径调用的，
+            // 一旦逃出去就是进程崩溃。
+            try
+            {
+                Dispatcher.BeginInvoke(UpdateMediaButtons);
+            }
+            catch (Exception)
+            {
+            }
+
             return;
         }
         foreach (var visual in _widgetVisuals.Values)

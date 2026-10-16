@@ -59,6 +59,11 @@ public partial class DockWindow
     {
         if (fullscreen)
         {
+            // 小组件弹窗是独立窗口，Dock 让位时它也得一起收走，
+            // 否则全屏画面上会留着它（它同样是 Topmost）。
+            _widgetPopup?.CloseAnimated();
+            _widgetPopup = null;
+
             // 已经不可见（可能刚被性能策略收走）就不动，免得抢它的恢复时机。
             if (!IsVisible)
             {

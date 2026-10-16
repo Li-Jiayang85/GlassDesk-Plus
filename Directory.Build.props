@@ -14,15 +14,21 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
+    <!--
+      LibraryImport（源生成的 P/Invoke）需要它；音量键等互操作依赖这一项。
+      只是允许不安全代码，既有代码没有因此变化。
+    -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
     <Product>GlassDesk Plus</Product>
     <Company>GlassDesk Plus</Company>
     <!--
       本分支（GlassDesk Plus）自 1.0 起独立编号：关于页显示的版本、以及更新检查
       与 GitHub Release 比较用的版本，都取自这里。
     -->
-    <Version>1.0</Version>
+    <Version>1.0.1</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <FileVersion>1.0.1.0</FileVersion>
     <NeutralLanguage>zh-Hans</NeutralLanguage>
 
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
