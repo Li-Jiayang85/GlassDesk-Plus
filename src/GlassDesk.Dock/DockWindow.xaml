@@ -109,14 +109,19 @@
                     Click="OnSettingsButtonClick">
               <Viewbox x:Name="SettingsTile" Width="48" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Canvas Width="48" Height="48">
-                  <Path Data="M24,15 A9,9 0 1,1 23.99,15 M24,21 A3,3 0 1,0 24,27 M24,21 A3,3 0 1,1 24,27"
+                  <!-- 齿轮：与其余入口同规格——图形占满 3–45，线宽 3.5，圆头圆角。
+                       原先是半径 9 的圆加一个半径 3 的小圆（只占 15–33），
+                       而且线宽写成 3.2、又缺圆头端帽，所以看着比旁边那排小一号、端头也发方。 -->
+                  <Path Data="M24,9 A15,15 0 1,1 23.99,9 M24,19 A5,5 0 1,1 23.99,19"
                         Fill="Transparent"
                         Stroke="{Binding ForegroundBrush, RelativeSource={RelativeSource AncestorType=Window}}"
-                        StrokeThickness="3.2" StrokeLineJoin="Round" />
-                  <Path Data="M12,30 L13.2,26.5 M36,30 L34.8,26.5 M12,18 L13.2,21.5 M36,18 L34.8,21.5 M18,12 L21.5,13.2 M30,12 L26.5,13.2 M18,36 L21.5,34.8 M30,36 L26.5,34.8"
+                        StrokeThickness="3.5" StrokeLineJoin="Round"
+                        StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                  <Path Data="M39,24 H44 M24,9 V4 M9,24 H4 M24,39 V44 M34.6,34.6 L38.1,38.1 M34.6,13.4 L38.1,9.9 M13.4,13.4 L9.9,9.9 M13.4,34.6 L9.9,38.1"
                         Fill="Transparent"
                         Stroke="{Binding ForegroundBrush, RelativeSource={RelativeSource AncestorType=Window}}"
-                        StrokeThickness="3.2" StrokeLineJoin="Round" />
+                        StrokeThickness="3.5" StrokeLineJoin="Round"
+                        StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
                 </Canvas>
               </Viewbox>
             </Button>
