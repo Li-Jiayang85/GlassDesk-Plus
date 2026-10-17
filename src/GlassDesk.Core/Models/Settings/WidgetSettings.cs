@@ -76,6 +76,7 @@ public sealed class WidgetSettings
     /// </remarks>
     public static int RefreshIntervalFor(WidgetKind kind) => kind switch
     {
+        WidgetKind.Clock => 500,       // 0.5 秒：秒针要准，半秒一跳更接近系统时钟
         WidgetKind.Weather => 1800000, // 30 分钟
         _ => 1000,                     // 1 秒
     };

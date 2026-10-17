@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -24,7 +24,9 @@ public partial class DockWindow
 {
     private static readonly CultureInfo WidgetCulture = CultureInfo.GetCultureInfo("zh-CN");
 
-    private readonly DispatcherTimer _widgetsTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    // 节拍取 250ms 而不是 500ms：时钟要 0.5 秒刷新一次，节拍等于刷新周期时
+    // 每一拍都可能差几毫秒而判成「还没到」，实际会退化成一秒一跳。
+    private readonly DispatcherTimer _widgetsTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly Dictionary<WidgetKind, WidgetVisual> _widgetVisuals = [];
     private bool _widgetsInitialized;
     private WidgetKind? _activePanelKind;
@@ -602,6 +604,10 @@ public partial class DockWindow
         {
             Width = 140,
             Height = 30,
+            // 显式定 12 并收紧内边距：主题默认 Padding 是 9,5，30 高的框只剩 20，
+            // 中文行框比这更高，字会被上下裁掉。
+            FontSize = 12,
+            Padding = new Thickness(9, 3, 9, 3),
             VerticalContentAlignment = VerticalAlignment.Center,
             ToolTip = "输入城市名，例如：广州",
             Margin = new Thickness(0, 0, 8, 0),
@@ -904,6 +910,8 @@ public partial class DockWindow
         {
             Width = 260,
             Height = 30,
+            FontSize = 12,
+            Padding = new Thickness(9, 3, 9, 3),
             VerticalContentAlignment = VerticalAlignment.Center,
             ToolTip = "标题",
         };
@@ -911,6 +919,7 @@ public partial class DockWindow
         {
             Width = 260,
             Height = 64,
+            FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
             VerticalContentAlignment = VerticalAlignment.Top,
             AcceptsReturn = true,
@@ -1015,6 +1024,8 @@ public partial class DockWindow
         {
             Width = 200,
             Height = 30,
+            FontSize = 12,
+            Padding = new Thickness(9, 3, 9, 3),
             VerticalContentAlignment = VerticalAlignment.Center,
             ToolTip = "新待办内容",
             Margin = new Thickness(0, 0, 8, 0),
