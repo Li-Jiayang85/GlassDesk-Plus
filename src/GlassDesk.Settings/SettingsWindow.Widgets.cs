@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using GlassDesk.Core.Models.Settings;
@@ -23,7 +23,7 @@ public partial class SettingsWindow
         try
         {
             var current = _dataStore?.Settings.Current;
-            WidgetsEnabledCheck.IsChecked = current?.WidgetsEnabled ?? true;
+            WidgetsEnabledCheck.IsChecked = current?.WidgetsEnabled ?? false;
             WidgetsEnabledCheck.IsEnabled = _dataStore is not null;
             var enabled = _dataStore is not null && WidgetsEnabledCheck.IsChecked == true;
 
@@ -58,7 +58,7 @@ public partial class SettingsWindow
         bool enabled, GlassDeskSettings? current, int[] refreshOptions)
     {
         var widget = current?.Widgets.FirstOrDefault(w => w.Kind == kind);
-        enabledCheck.IsChecked = widget?.Enabled ?? true;
+        enabledCheck.IsChecked = widget?.Enabled ?? false;
         enabledCheck.IsEnabled = enabled;
         if (refreshCombo is not null)
         {

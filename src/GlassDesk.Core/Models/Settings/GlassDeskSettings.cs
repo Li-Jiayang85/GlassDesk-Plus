@@ -1,4 +1,4 @@
-﻿namespace GlassDesk.Core.Models.Settings;
+namespace GlassDesk.Core.Models.Settings;
 
 /// <summary>
 /// 用户可配置内容的根，持久化为单个 JSON 文档。
@@ -33,8 +33,10 @@ public sealed class GlassDeskSettings
     public DesktopTaskbarSettings DesktopTaskbar { get; set; } = new();
 
 
-    /// <summary>小组件总开关。</summary>
-    public bool WidgetsEnabled { get; set; } = true;
+    /// <summary>
+    /// 小组件总开关。默认关闭（bool 默认值）：用户需要时再打开，并按各自的开关挑选要显示的小组件。
+    /// </summary>
+    public bool WidgetsEnabled { get; set; }
 
     /// <summary>各小组件的独立设置（时钟 / 日期 / 系统监控）。</summary>
     public List<WidgetSettings> Widgets { get; set; } = [];

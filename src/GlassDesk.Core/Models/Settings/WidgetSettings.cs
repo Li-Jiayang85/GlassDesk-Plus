@@ -34,7 +34,8 @@ public sealed class WidgetSettings
 
     public WidgetKind Kind { get; set; }
 
-    public bool Enabled { get; set; } = true;
+    /// <summary>该小组件是否启用。默认关闭（bool 默认值），由用户在设置里逐个打开。</summary>
+    public bool Enabled { get; set; }
 
     /// <summary>渲染尺寸倍率。</summary>
     public double Size { get; set; } = 1.0;
@@ -54,11 +55,11 @@ public sealed class WidgetSettings
     /// </remarks>
     public string WeatherLocation { get; set; } = "";
 
-    /// <summary>创建某个小组件的默认配置。</summary>
+    /// <summary>创建某个小组件的默认配置（默认不启用，等用户自己打开）。</summary>
     public static WidgetSettings CreateDefault(WidgetKind kind) => new()
     {
         Kind = kind,
-        Enabled = true,
+        Enabled = false,
         Size = 1.0,
         DockDocked = true,
         RefreshIntervalMs = 1800000,
