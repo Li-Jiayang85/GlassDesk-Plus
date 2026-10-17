@@ -707,7 +707,7 @@ public sealed class LiquidGlassSurface : FrameworkElement, IDisposable
             var tint = dark ? (byte)18 : (byte)250;
             dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(
                 (byte)Math.Round(255 * AndroidLiquidGlassRenderer.BodyOpacity * AndroidLiquidGlassRenderer.BodyTintScale(
-                    BackgroundClarity, UseLaunchpadOptics)), tint, tint, tint)), null, rect);
+                    BackgroundClarity)), tint, tint, tint)), null, rect);
         }
         if (opticalFrameMatches && (!compatibleChrome || _transitionCaptureBounds is null))
         {

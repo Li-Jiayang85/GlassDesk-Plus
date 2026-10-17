@@ -44,10 +44,42 @@ public partial class DockWindow
             RestoreAfterFullscreen();
         };
 
-        _fullscreenWatchdog = FullscreenWatcher.TryStart(OnFullscreenChanged, FullscreenOptions.Default);
+        // 只靠 onFullscreenChanged 不够：它只在「全屏判定」翻转时回调，而最大化不改全屏判定，
+        // 回调根本不会来。onStateInvalidated 每个前台/位置事件都会通知，用它驱动让位判定。
+        _fullscreenWatchdog = FullscreenWatcher.TryStart(
+            OnFullscreenChanged,
+            FullscreenOptions.Default,
+            onStateInvalidated: () =>
+            {
+                if (Dispatcher.HasShutdownStarted) return;
+                Dispatcher.BeginInvoke(DispatcherPriority.Normal,
+                    new Action(() => ApplyFullscreenYield(ShouldYieldToForeground())));
+            });
 
         // 启动时可能已经处于全屏（例如从全屏应用里切过来重启外壳），先对齐一次当前状态。
-        ApplyFullscreenYield(FullscreenDetector.IsFullscreenActive());
+        ApplyFullscreenYield(ShouldYieldToForeground());
+    }
+
+    /// <summary>
+    /// 前台窗口是否已经占满屏幕、需要把程序坞收走。
+    /// </summary>
+    /// <remarks>
+    /// 只看「真全屏」是不够的：最大化窗口覆盖的是工作区（显示器减去任务栏），
+    /// 按整块显示器判定会认为它没占满，置顶的程序坞于是压在最大化窗口上面——
+    /// 用户看到的就是「窗口一最大化，程序坞就跳出来」。所以这里把最大化也算作让位条件。
+    /// </remarks>
+    private bool ShouldYieldToForeground()
+    {
+        if (FullscreenDetector.IsFullscreenActive())
+        {
+            return true;
+        }
+
+        // 同时拿显示器边界与工作区各判一次：任务栏自动隐藏时工作区等于整屏，
+        // 两种口径在这一刻重合，不会互相打架。
+        return CurrentPrimaryDisplay is { } display
+            && (FullscreenDetector.ForegroundCovers(display.WorkArea)
+                || FullscreenDetector.ForegroundCovers(display.Bounds));
     }
 
     private void StopFullscreenWatchdog()
@@ -60,14 +92,18 @@ public partial class DockWindow
 
     private void OnFullscreenChanged(bool fullscreen)
     {
+        // 看门狗给的布尔值只代表「真全屏」，最大化不在其中；
+        // 统一回到 UI 线程后用同一个让位判定重新算一次，避免两套口径打架。
+        _ = fullscreen;
+
         // WinEvent 回调不在 UI 线程上，动窗口前必须先回到 UI 线程。
         if (!Dispatcher.CheckAccess())
         {
-            Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(() => ApplyFullscreenYield(fullscreen)));
+            Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(() => ApplyFullscreenYield(ShouldYieldToForeground())));
             return;
         }
 
-        ApplyFullscreenYield(fullscreen);
+        ApplyFullscreenYield(ShouldYieldToForeground());
     }
 
     private void ApplyFullscreenYield(bool fullscreen)
@@ -111,7 +147,7 @@ public partial class DockWindow
         }
 
         // 期间又切回全屏（迟到的状态变化）时不恢复——让下一轮去抖重新计时。
-        if (FullscreenDetector.IsFullscreenActive())
+        if (ShouldYieldToForeground())
         {
             return;
         }

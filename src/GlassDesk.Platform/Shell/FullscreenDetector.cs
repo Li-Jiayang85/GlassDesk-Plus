@@ -569,6 +569,24 @@ public static class FullscreenDetector
         && window.Right >= monitor.Right - CoverageTolerance
         && window.Bottom >= monitor.Bottom - CoverageTolerance;
 
+    /// <summary>
+    /// 前台窗口是否已经占满给定区域（物理像素）。
+    /// </summary>
+    /// <remarks>
+    /// 判定「最大化」用：最大化窗口覆盖的是工作区（显示器减去任务栏），比全屏判定宽松一档。
+    /// 传工作区进来就能把最大化与全屏一并识别；传显示器边界则等同全屏判定。
+    /// 本进程自己的窗口一律不算——否则点开设置时程序坞会把自己收走。
+    /// </remarks>
+    public static bool ForegroundCovers(PixelRect area)
+    {
+        var handle = User32.GetForegroundWindow();
+        if (handle == 0) return false;
+        if (GetProcessId(handle) == (uint)Environment.ProcessId) return false;
+        if (IsExcluded(handle, FullscreenOptions.Default, out _)) return false;
+        if (!TryGetGeometry(handle, out var geometry, out _)) return false;
+        return Covers(geometry.VisibleFrame ?? geometry.WindowRect, area);
+    }
+
     private static (UserNotificationState State, string? Error) QueryShellStateCore()
     {
         try

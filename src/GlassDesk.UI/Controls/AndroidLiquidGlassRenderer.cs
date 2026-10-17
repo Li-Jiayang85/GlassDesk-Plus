@@ -1,4 +1,4 @@
-// Lens profile and expanded-radius gradient adapted from Kyant0/AndroidLiquidGlass,
+﻿// Lens profile and expanded-radius gradient adapted from Kyant0/AndroidLiquidGlass,
 // Copyright 2025 Kyant, Apache-2.0. See docs/third-party/android-liquid-glass/NOTICE.md.
 using System.Buffers;
 using System.Runtime.CompilerServices;
@@ -125,7 +125,7 @@ internal sealed class AndroidLiquidGlassRenderer
         var filtered = FilterBackdrop(source, width, height, size, strength, backgroundClarity);
         var result = new byte[source.Length];
         var tint = dark ? 18d : 250d;
-        var opacity = NormalizeTintOpacity(tintOpacity) * BodyTintScale(backgroundClarity, launchpadOptics) * strength;
+        var opacity = NormalizeTintOpacity(tintOpacity) * BodyTintScale(backgroundClarity) * strength;
         var dispersion = (dispersionParameters ?? LiquidGlassDispersionParameters.Default).Normalize();
         var dispersionScale = dispersion.DispersionStrength / LiquidGlassDispersionParameters.DefaultDispersionStrength;
         for (var pixel = 0; pixel < _map.Length; pixel++)
@@ -165,7 +165,7 @@ internal sealed class AndroidLiquidGlassRenderer
         // Filtering already owns its output; only the unfiltered path aliases the capture.
         var result = ReferenceEquals(filtered, source) ? source.ToArray() : filtered;
         var tint = dark ? 18d : 250d;
-        var opacity = NormalizeTintOpacity(tintOpacity) * BodyTintScale(backgroundClarity, launchpadOptics) * strength;
+        var opacity = NormalizeTintOpacity(tintOpacity) * BodyTintScale(backgroundClarity) * strength;
         TintBackdrop(result, tint, opacity);
         return result;
     }
@@ -181,7 +181,7 @@ internal sealed class AndroidLiquidGlassRenderer
         source.CopyTo(result, 0);
         if (strength > 0) ApplyBackdropFilter(source, result, width, height, size, strength, backgroundClarity, scratch);
         var tint = dark ? 18d : 250d;
-        var opacity = NormalizeTintOpacity(tintOpacity) * BodyTintScale(backgroundClarity, launchpadOptics) * strength;
+        var opacity = NormalizeTintOpacity(tintOpacity) * BodyTintScale(backgroundClarity) * strength;
         TintBackdrop(result, tint, opacity);
     }
 
@@ -231,8 +231,13 @@ internal sealed class AndroidLiquidGlassRenderer
     internal static double NormalizeBackgroundClarity(double value) => double.IsFinite(value)
         ? Math.Clamp(value, 0, 1) : .5;
 
-    internal static double BodyTintScale(double clarity, bool launchpadOptics) => launchpadOptics
-        ? Math.Min(1, 2 * (1 - NormalizeBackgroundClarity(clarity))) : 1;
+    internal static double BodyTintScale(double clarity)
+    {
+        // 0 = 不透明、1 = 完全透明：染色量随滑块线性递减，整段行程都有反馈。
+        // 旧实现对启动台用 min(1, 2*(1-c))，c ≤ 0.5 恒为 1（左半段焊死）；
+        // 对 Dock 更是恒定为 1，所以拖滑杆几乎看不出变化——这就是「透明度调整失效」。
+        return 1 - NormalizeBackgroundClarity(clarity);
+    }
 
     private static byte[] FilterBackdrop(byte[] source, int width, int height, Size size, double strength, double backgroundClarity)
     {
