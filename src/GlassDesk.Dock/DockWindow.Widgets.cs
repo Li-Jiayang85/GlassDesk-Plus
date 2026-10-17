@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -572,7 +572,8 @@ public partial class DockWindow
             FontWeight = FontWeights.Bold,
             Foreground = Brushes.White,
             TextWrapping = TextWrapping.Wrap,
-            LineHeight = 30,
+            // 不设 LineHeight：22 号中文的行框本身就比 30 高一点，
+            // 钉死成 30 会把「2026年10月17日 星期六」这类文字的下缘裁掉。
             Text = RenderWidgetDetail(kind),
         };
         _activePanelDetail = text;
@@ -841,7 +842,14 @@ public partial class DockWindow
                 };
                 itemText = new TextBlock { };
                 var v = new StackPanel { Orientation = Orientation.Vertical };
-                v.Children.Add(new TextBlock { Text = string.IsNullOrWhiteSpace(note.Title) ? "(无标题)" : note.Title, FontSize = 13, Foreground = Brushes.White });
+                // 标题也可能很长：不换行就会被卡片右边界直接裁断。
+                v.Children.Add(new TextBlock
+                {
+                    Text = string.IsNullOrWhiteSpace(note.Title) ? "(无标题)" : note.Title,
+                    FontSize = 13,
+                    Foreground = Brushes.White,
+                    TextWrapping = TextWrapping.Wrap,
+                });
                 v.Children.Add(contentText);
                 itemText = null!;
                 item.Child = v;
@@ -906,6 +914,8 @@ public partial class DockWindow
             TextWrapping = TextWrapping.Wrap,
             VerticalContentAlignment = VerticalAlignment.Top,
             AcceptsReturn = true,
+            // 固定高度的多行框：内容超过两行时必须能滚动，否则后面的文字被直接裁掉。
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             ToolTip = "内容（可空）",
         };
         var saveBtn = new Button { Content = "保存", Height = 30, Padding = new Thickness(14, 0, 14, 0), FontSize = 12, Cursor = System.Windows.Input.Cursors.Hand, Background = new SolidColorBrush(Color.FromArgb(255, 64, 128, 255)), BorderThickness = new Thickness(0), Foreground = Brushes.White };
