@@ -41,12 +41,13 @@ internal static partial class Program
             data.LoadAll();
             var settings = data.Settings.Current;
 
-            Check("小组件：新配置默认总开关为关", "W-01", !settings.WidgetsEnabled,
-                "WidgetsEnabled=false", settings.WidgetsEnabled.ToString());
             Check("小组件：新配置里八个小组件全部默认关闭", "W-01",
                 settings.Widgets.Count == 8 && settings.Widgets.All(w => !w.Enabled),
                 "8 个且 Enabled 全为 false",
                 $"{settings.Widgets.Count} 个，开启 {settings.Widgets.Count(w => w.Enabled)} 个");
+            Check("小组件：总开关不再起门禁作用（界面已移除）", "W-01",
+                settings.WidgetsEnabled,
+                "WidgetsEnabled=true（仅保留字段兼容）", settings.WidgetsEnabled.ToString());
 
             var host = WidgetSettingsHost.Initialize(Dispatcher.CurrentDispatcher);
             host.Update(settings.WidgetsEnabled, settings.Widgets);
@@ -62,41 +63,61 @@ internal static partial class Program
                 "0 个可见小组件",
                 $"{VisibleWidgetCount(dock)} 个");
 
-            // 打开总开关但一个都不选：仍然没有图标。
-            host.Update(true, settings.Widgets);
-            Pump(TimeSpan.FromMilliseconds(200));
-            Check("小组件：只开总开关、不选具体小组件时仍无图标", "W-03",
-                VisibleWidgetCount(dock) == 0,
-                "0 个可见小组件",
-                $"{VisibleWidgetCount(dock)} 个");
-
-            // 单独启用时钟：只出现时钟一个。
+            // 单独启用时钟：只出现时钟一个（没有任何总开关参与）。
             var onlyClock = settings.Widgets.Select(w => new WidgetSettings
             {
                 Kind = w.Kind, Enabled = w.Kind == WidgetKind.Clock, Size = w.Size,
                 DockDocked = w.DockDocked, RefreshIntervalMs = w.RefreshIntervalMs,
             }).ToList();
-            host.Update(true, onlyClock);
+            host.Update(settings.WidgetsEnabled, onlyClock);
             Pump(TimeSpan.FromMilliseconds(200));
-            Check("小组件：独立开关只放出被选中的那一个", "W-04",
+            Check("小组件：独立开关只放出被选中的那一个", "W-03",
                 VisibleWidgetCount(dock) == 1,
                 "1 个可见小组件（时钟）",
                 WidgetSummary(dock));
 
-            // 关掉总开关：立刻全部收起。
-            host.Update(false, onlyClock);
+            // 再单独启用日期：两个都显示，互不影响。
+            var clockAndDate = onlyClock.Select(w => new WidgetSettings
+            {
+                Kind = w.Kind, Enabled = w.Kind is WidgetKind.Clock or WidgetKind.Date, Size = w.Size,
+                DockDocked = w.DockDocked, RefreshIntervalMs = w.RefreshIntervalMs,
+            }).ToList();
+            host.Update(settings.WidgetsEnabled, clockAndDate);
             Pump(TimeSpan.FromMilliseconds(200));
-            Check("小组件：关总开关立即收起全部图标", "W-05",
-                VisibleWidgetCount(dock) == 0,
-                "0 个可见小组件",
-                $"{VisibleWidgetCount(dock)} 个");
+            Check("小组件：两个独立开关可同时生效", "W-04",
+                VisibleWidgetCount(dock) == 2,
+                "2 个可见小组件（时钟 + 日期）",
+                WidgetSummary(dock));
 
-            // 重置该页应回到「全部关闭」的默认状态。
+            // 关掉时钟：只剩日期，证明是各自独立而不是全有全无。
+            var onlyDate = clockAndDate.Select(w => new WidgetSettings
+            {
+                Kind = w.Kind, Enabled = w.Kind == WidgetKind.Date, Size = w.Size,
+                DockDocked = w.DockDocked, RefreshIntervalMs = w.RefreshIntervalMs,
+            }).ToList();
+            host.Update(settings.WidgetsEnabled, onlyDate);
+            Pump(TimeSpan.FromMilliseconds(200));
+            Check("小组件：关掉其中一个不影响另一个", "W-05",
+                VisibleWidgetCount(dock) == 1,
+                "1 个可见小组件（日期）",
+                WidgetSummary(dock));
+
+            // 旧配置迁移：widgetsEnabled=false 的语义应落到「各小组件关闭」，且不再挡人。
+            var legacy = new GlassDeskSettings();
+            legacy.WidgetsEnabled = false;
+            foreach (var widget in legacy.Widgets) widget.Enabled = true;
+            legacy.Normalize();
+            Check("小组件：旧配置 widgetsEnabled=false 迁移为各开关关闭", "W-06",
+                legacy.WidgetsEnabled && legacy.Widgets.All(w => !w.Enabled),
+                "迁移后字段为 true、八个小组件全关",
+                $"字段={legacy.WidgetsEnabled}、开启 {legacy.Widgets.Count(w => w.Enabled)} 个");
+
+            // 重置该页应回到「全部关闭」。
             var reset = SettingsPageEditor.ResetPage(settings, "小组件");
-            Check("小组件：恢复默认后回到全部关闭", "W-06",
-                !reset.WidgetsEnabled && reset.Widgets.All(w => !w.Enabled),
-                "总开关关、八个全关",
-                $"总开关={reset.WidgetsEnabled}、开启 {reset.Widgets.Count(w => w.Enabled)} 个");
+            Check("小组件：恢复默认后回到全部关闭", "W-07",
+                reset.Widgets.All(w => !w.Enabled),
+                "八个全关",
+                $"开启 {reset.Widgets.Count(w => w.Enabled)} 个");
         }
         catch (Exception ex)
         {

@@ -81,6 +81,15 @@ public sealed class GlassDeskSettings
         Shortcuts.Normalize();
         DesktopTaskbar.Normalize();
         NormalizeWidgets();
+
+        // 小组件的总开关已从界面移除：每个小组件自己的开关就是唯一控制。
+        // 旧配置里 widgetsEnabled=false 的语义是「全部不显示」，这里把它逐项落到各小组件上，
+        // 字段本身保留（恒为 true）只为兼容旧文件，之后不再起门禁作用。
+        if (!WidgetsEnabled)
+        {
+            foreach (var widget in Widgets) widget.Enabled = false;
+            WidgetsEnabled = true;
+        }
     }
 
     /// <summary>补全小组件列表为固定三类，并夹紧每个小组件的数值范围。</summary>

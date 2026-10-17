@@ -1,4 +1,4 @@
-﻿<controls:GlassWindow
+<controls:GlassWindow
     x:Class="GlassDesk.Settings.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -291,10 +291,7 @@
               <Separator Margin="0,4,0,14" />
               <TextBlock x:Name="WidgetsSectionHeading" FontSize="16" FontWeight="SemiBold" Text="小组件"
                          Foreground="{Binding ForegroundBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
-              <TextBlock Margin="0,8,0,6" TextWrapping="Wrap" Text="在 Dock 栏显示时钟、日期与系统监控。每个小组件可独立启用与设置刷新频率；图标大小统一跟随 Dock 的图标尺寸。" />
-              <CheckBox x:Name="WidgetsEnabledCheck" Margin="0,6,0,8" Content="启用小组件"
-                        AutomationProperties.Name="启用小组件"
-                        Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
+              <TextBlock Margin="0,8,0,6" TextWrapping="Wrap" Text="在 Dock 栏显示时钟、日期与系统监控等小组件。每个小组件都有独立的开关，勾选哪个就显示哪个；图标大小统一跟随 Dock 的图标尺寸。" />
               <TextBlock Margin="0,8,0,4" FontWeight="SemiBold" Text="时钟" />
               <CheckBox x:Name="WidgetClockEnabledCheck" Margin="0,0,0,4" Content="启用时钟小组件"
                         AutomationProperties.Name="启用时钟小组件" IsEnabled="False"

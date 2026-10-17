@@ -23,9 +23,8 @@ public partial class SettingsWindow
         try
         {
             var current = _dataStore?.Settings.Current;
-            WidgetsEnabledCheck.IsChecked = current?.WidgetsEnabled ?? false;
-            WidgetsEnabledCheck.IsEnabled = _dataStore is not null;
-            var enabled = _dataStore is not null && WidgetsEnabledCheck.IsChecked == true;
+            // 没有总开关：每个小组件勾不勾就是开不开，控件始终可用（只受数据是否就绪影响）。
+            var enabled = _dataStore is not null;
 
             LoadWidgetControls(WidgetKind.Clock,
                 WidgetClockEnabledCheck, WidgetClockRefreshCombo, enabled, current, WidgetRefreshOptions);
@@ -109,7 +108,8 @@ public partial class SettingsWindow
         var previousWidgets = current.Widgets;
         try
         {
-            current.WidgetsEnabled = WidgetsEnabledCheck.IsChecked == true;
+            // 总开关已从界面移除；保留字段供旧配置兼容，形态上恒为开。
+            current.WidgetsEnabled = true;
             current.Widgets =
             [
                 BuildWidget(WidgetKind.Clock,
