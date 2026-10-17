@@ -1,36 +1,75 @@
-# GlassDesk
+# GlassDesk Plus
 
-Windows 11 x64 桌面美化工具：玻璃 Dock、启动台和统一设置中心。
+Windows 11 桌面美化：一块会呼吸的毛玻璃程序坞、一个能搜索能整理的启动台、一排各自开关的小组件，以及一个统一设置中心。
 
-[下载本分支版本](https://github.com/Li-Jiayang85/GlassDesk-Plus/releases) · [上游源码快照](https://github.com/everlosttime/glassdesk-open-source/tags)
+**下载安装包**：[Releases](https://github.com/Li-Jiayang85/GlassDesk-Plus/releases) · 只支持 Windows 11 x64（Build 22000 及以上）
 
-> **本仓库是修改版（Fork）**，基于原作者 [everlosttime/glassdesk](https://github.com/everlosttime/glassdesk) 的 Apache-2.0 源码快照（1.3.1）。原始来源与许可信息见 `SOURCE-PROVENANCE.json`、`LICENSE`、`NOTICE`。
+> 本仓库是 [everlosttime/glassdesk](https://github.com/everlosttime/glassdesk) 的修改版（Fork），
+> 基于其 Apache-2.0 源码快照（1.3.1）。来源与许可信息见 `SOURCE-PROVENANCE.json`、`LICENSE`、`NOTICE`。
 
-## 本分支的改动
+## 功能
 
-- **移除「检查更新」功能。** 原更新通道指向上游作者的发布仓库，用它更新会下载并安装上游版本、从而覆盖本分支自己的功能。因此本分支删除了检查与安装更新的全部代码（`AppHost.Updates`、`UpdateClient`、`UpdateInstaller`、`UpdateRelease`、`UpdateWindow`、设置页入口），删除了打包用的 `update-source.json`，并删除了相关测试（`UpdateClientTests`、`UpdateInstallerTests`、`UpdateAcceptance` 工程）。「关于」页只保留版本显示。
-- **小组件图标并入 Dock 栏同一行。** 不再独占 Dock 底部独立的一行，而是与启动台、此电脑、切换桌面图标、设置等按钮并排显示，尺寸、间距与对齐方式与其他按钮保持一致；点击小组件图标的行为不变，小组件仍可通过设置单独启用/禁用与调节。
+**程序坞（Dock）**
 
-除上述改动外，功能与上游 1.3.1 快照保持一致。本分支沿用同一 Apache-2.0 许可；第三方代码与资源仍保留各自许可，详见 `NOTICE` 与 `docs/third-party`。
+- 实时毛玻璃面板，大小、外框长度、水平/垂直偏移、透明度都可调
+- 四个自带入口——启动台、此电脑、切换桌面图标、设置——**各自独立显示/隐藏**，隐藏后不留空位
+- 应用图标可拖动排序，可拖入/拖出分组
+- 窗口最大化或全屏时自动让位，还原后自动回来，不会压在窗口上
 
-## 公开版本
+**启动台（Launcher）**
 
-- v1.2.2：历史源码快照，包含启动台子图标 DPI 事件引发背景重建的修复。
-- v1.3.1：当前源码快照，包含可独立开关的启动台、此电脑、桌面图标显隐入口、此前的外观与后台资源管理改进，以及 Dock 在窗口最大化/还原后刷新玻璃背景的修复。
+- 分页网格 + 搜索，支持键盘操作
+- 右键多选后可 **批量删除**：勾选角标标记，顶部工具栏「删除」一次清除，不弹确认框
+- 拖拽调整顺序、拖入分组
 
-每个标签是对应版本的独立完整源码快照。旧开发历史、本机用户数据、截图、日志和验收记录不包含在这个仓库中。原始版本来源见 SOURCE-PROVENANCE.json。
+**小组件**
 
-## 许可证
+- 七个：时钟、日期、系统监控、天气、音频播放控制、备忘录、待办事项
+- **每个都有独立开关**，默认全部关闭，勾哪个显示哪个
+- 刷新频率按类型固定：时钟 0.5 秒、其余 1 秒、天气 30 分钟
+- 图标并入 Dock 同一行，与其它入口同尺寸同对齐
 
-GlassDesk 原创代码采用 Apache License 2.0，允许修改、商用及闭源衍生产品，须遵守版权、许可、修改声明等要求。完整条款见 LICENSE；第三方代码与资源保留自身许可，详见 NOTICE 和 docs/third-party。
+**其它**
 
-GlassDesk 不打包用户导入应用的图标，项目许可不授予第三方商标权利。
+- 统一设置中心：外观、Dock、启动台、快捷操作、性能、小组件、桌面、备份恢复、关于
+- 全局快捷键可改键；性能策略在全屏/空闲时自动休眠以省电
+- 设置、应用库、布局、图标缓存可一键备份与恢复；卸载保留数据
+- 应用内检查更新，更新源指向本仓库的 Releases
+
+## 版本
+
+当前版本 **1.4.9**。每个标签是对应版本的完整源码快照，安装包见 [Releases](https://github.com/Li-Jiayang85/GlassDesk-Plus/releases)。
+
+| 版本 | 主要变化 |
+|---|---|
+| 1.4.9 | 最大化/全屏时 Dock 让位；透明度滑杆整段有效 |
+| 1.4.8 | 移除日历小组件 |
+| 1.4.7 | 时钟 0.5 秒刷新；修输入框字号与框高 |
+| 1.4.6 | 修小组件面板文字与文本框裁切 |
+| 1.4.5 | 小组件刷新频率固定化 |
+| 1.4.4 | 小组件改为各自独立开关 |
+| 1.4.3 | 小组件默认关闭 |
+| 1.4.2 | Dock 自带图标全部可在设置中显示/隐藏 |
+| 1.4.1 | 启动台批量删除、Dock 拖动排序 |
+| ≤ 1.3.1 | 上游快照 |
+
+## 与上游的差异
+
+- **更新通道改指向本仓库。** 上游的检查更新会下载并安装上游版本、覆盖本分支的功能；
+  本分支改为使用自己的 Releases（资产命名 `GlassDesk-Plus-<版本>-win-x64-Setup.exe`）。
+- **Dock 自带入口可全部隐藏**，包括原先固定显示的「设置」。
+- **小组件重做**：并入 Dock 同一行、默认关闭、每个独立开关、刷新频率固定、移除日历。
+- **启动台批量删除**与 **Dock 拖动排序**。
+- **Dock 自动让位**：窗口最大化/全屏时收起，还原后恢复。
+
+其余基础功能（玻璃材质、外观、快捷操作、性能休眠、备份恢复）与上游 1.3.1 快照一致。
+本分支沿用同一 Apache-2.0 许可；第三方代码与资源保留各自许可，详见 `NOTICE` 与 `docs/third-party`。
 
 ## 环境
 
-- Windows 11 x64；源项目目标 SDK 为 Windows 10.0.26100.0，运行兼容下限为 Windows 11 Build 22000。
-- .NET 10 SDK，global.json 固定工具链版本 10.0.401 并允许 latestFeature 滚动策略。
-- 高级实时玻璃使用部分非公开 DWM 接口，并按能力提供兼容回退。各版本的现场验证不代表所有 Windows Build、显卡、HDR、多屏环境均已验证。
+- Windows 11 x64；目标 SDK 为 Windows 10.0.26100.0，运行兼容下限 Windows 11 Build 22000
+- .NET 10 SDK（`global.json` 固定工具链 10.0.401）
+- 高级实时玻璃使用部分非公开 DWM 接口，并按能力提供兼容回退
 
 ## 编译和运行
 
@@ -39,7 +78,7 @@ dotnet build src/GlassDesk.App/GlassDesk.App.csproj -c Release
 dotnet run --project src/GlassDesk.App/GlassDesk.App.csproj -c Release
 ```
 
-程序数据位于实际运行目录旁的 Data。源码构建版也使用独立的输出目录数据。正式版按用户会话维持单实例，启动开发版前应先从托盘退出已安装版。
+程序数据位于运行目录旁的 `Data`。正式版按用户会话维持单实例，启动开发版前应先从托盘退出已安装版。
 
 ```powershell
 dotnet test tests/GlassDesk.Core.Tests/GlassDesk.Core.Tests.csproj -c Release
@@ -47,34 +86,27 @@ dotnet test tests/GlassDesk.AppServices.Tests/GlassDesk.AppServices.Tests.csproj
 dotnet test tests/GlassDesk.Dock.Tests/GlassDesk.Dock.Tests.csproj -c Release
 ```
 
-部分 Windows/WPF 验收测试会创建窗口并检查真实桌面服务，应在可交互的 Windows 会话中运行。
-
-## 从源码生成便携版
+此外还有两个可运行的验收程序（需要真实桌面会话）：
 
 ```powershell
-$version = ([xml](Get-Content Directory.Build.props -Raw)).Project.PropertyGroup.Version
-$version = @($version | Where-Object { $_ })[0]
-dotnet publish src/GlassDesk.App/GlassDesk.App.csproj -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=true "-p:InformationalVersion=$version" -p:IncludeSourceRevisionInInformationalVersion=false -o artifacts/publish
-Copy-Item LICENSE artifacts/publish/LICENSE.txt
-Copy-Item NOTICE artifacts/publish/NOTICE.txt
-Copy-Item docs/third-party artifacts/publish/third-party -Recurse
+# 窗口级验收：启动台、Dock 入口、批量删除、小组件
+tests/GlassDesk.LauncherAcceptance/bin/Release/net10.0-windows10.0.26100.0/GlassDesk.LauncherAcceptance.exe --widgets-default
+# 更新通道验收（--online 会真实访问 GitHub 并下载校验）
+tests/GlassDesk.UpdateAcceptance/bin/Release/net10.0-windows10.0.26100.0/GlassDesk.UpdateAcceptance.exe --online
 ```
 
-artifacts/publish 中的 GlassDesk.exe 可直接运行。不要把自己的 Data 目录放入分发包。框架与第三方资源的许可文件应随分发包保留。
-
-## 从源码生成安装包
-
-另安装 Inno Setup 7，并将 ISCC.exe 所在目录加入当前终端的 PATH。先执行上面的便携版发布命令，再执行：
+## 打包
 
 ```powershell
-$env:GLASSDESK_PACKAGE_STAGE = (Resolve-Path artifacts/publish).Path
-ISCC /DAppIdValue=GlassDesk.Independent "/DProductVersion=$version" "/DFileVersion=$version.0" /DWindows11Compatibility=1 "/DPackageBaseName=GlassDesk-$version-win-x64" /Oartifacts packaging/GlassDesk-Capture.iss
+# 生成自包含安装包（需要 Inno Setup 7 的 ISCC.exe 在 PATH 中）
+build/package.ps1 -Version 1.4.9
+# 建 release 并上传
+build/release.ps1 -Version 1.4.9 -SkipPackage
 ```
 
-安装包支持选择目录。安装更新保留设置、应用库、布局和图标缓存，卸载也保留 Data。此源码打包流程不要求私有仓库的旧安装载荷。
+## 许可证
 
-## 修改着色器
+GlassDesk 原创代码采用 Apache License 2.0，允许修改、商用及闭源衍生产品，须遵守版权、许可、修改声明等要求。
+完整条款见 `LICENSE`；第三方代码与资源保留自身许可，详见 `NOTICE` 和 `docs/third-party`。
 
-TransitionGlass.hlsl 和编译后的 TransitionGlass.ps 均在 src/GlassDesk.UI/Effects 中。修改 HLSL 后执行 build/compile-transition-shader.ps1，再重新编译。
-
-历史 GlassDesk.UiAcceptance 工程的目标框架低于正式项目，直接构建整个旧解决方案会报 NU1201。请按上述 App 项目构建；此问题不影响正式程序的源码构建。本次保留历史测试源码，未改写历史产品代码。
+GlassDesk 不打包用户导入应用的图标，项目许可不授予第三方商标权利。
