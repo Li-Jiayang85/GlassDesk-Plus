@@ -179,7 +179,7 @@ public partial class DockWindow
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        foreach (var kind in Enum.GetValues<WidgetKind>())
+        foreach (var kind in WidgetKinds.Available)
         {
             var (iconData, name) = GetWidgetIdentity(kind);
 
@@ -538,7 +538,7 @@ public partial class DockWindow
 
         UIElement body = visual.Kind switch
         {
-            WidgetKind.Clock or WidgetKind.Date or WidgetKind.SystemMonitor or WidgetKind.Calendar
+            WidgetKind.Clock or WidgetKind.Date or WidgetKind.SystemMonitor
                 => BuildSimpleBody(visual.Kind),
             WidgetKind.Weather => BuildWeatherBody(),
             WidgetKind.AudioPlayer => BuildAudioBody(visual),
@@ -1240,7 +1240,6 @@ public partial class DockWindow
     {
         WidgetKind.Clock => ("M24,5 A19,19 0 1,1 23.99,5 M24,13 V25 L32,30", "时钟"),
         WidgetKind.Date => ("M9,10 H39 Q42,10 42,13 V39 Q42,42 39,42 H9 Q6,42 6,39 V13 Q6,10 9,10 Z M6,19 H42 M24,26 V36", "日期"),
-        WidgetKind.Calendar => ("M9,10 H39 Q42,10 42,13 V39 Q42,42 39,42 H9 Q6,42 6,39 V13 Q6,10 9,10 Z M6,19 H42 M15,6 V13 M33,6 V13 M14,26 H17 M23,26 H26 M32,26 H35 M14,33 H17 M23,33 H26 M32,33 H35", "日历"),
         WidgetKind.SystemMonitor => ("M8,34 A16,16 0 1,1 40,34 M24,34 L33,23 M12,23 L15,26 M24,18 V22 M36,23 L33,26", "监控"),
         WidgetKind.Weather => ("M13,30 H35 Q39,30 39,26 Q39,22 35,22 Q34,15 27,15 Q20,15 19,22 Q13,22 13,26 Q13,30 13,30 Z M18,35 L16,41 M26,35 L24,41 M34,35 L32,41", "天气"),
         WidgetKind.AudioPlayer => ("M22,36 A4.5,4.5 0 1,1 21.99,36 M26,33 V10 Q35,13 35,23", "音频"),
@@ -1261,7 +1260,6 @@ public partial class DockWindow
             WidgetKind.AudioPlayer => RenderAudioDetail(),
             WidgetKind.Notes => RenderNotesDetail(),
             WidgetKind.Todo => RenderTodoDetail(),
-            WidgetKind.Calendar => $"日历 {now:yyyy年M月}\n{now.ToString("M月d日 dddd", WidgetCulture)}",
             _ => string.Empty,
         };
     }
@@ -1641,3 +1639,4 @@ public partial class DockWindow
         public ulong Extend;
     }
 }
+

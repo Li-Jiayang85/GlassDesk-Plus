@@ -327,10 +327,6 @@
               <CheckBox x:Name="WidgetTodoEnabledCheck" Margin="0,0,0,4" Content="启用待办事项小组件"
                         AutomationProperties.Name="启用待办事项小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-<TextBlock Margin="0,10,0,4" FontWeight="SemiBold" Text="日历" />
-              <CheckBox x:Name="WidgetCalendarEnabledCheck" Margin="0,0,0,4" Content="启用日历小组件"
-                        AutomationProperties.Name="启用日历小组件" IsEnabled="False"
-                        Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
 <TextBlock x:Name="WidgetsSettingsStatus" Margin="0,10,0,14" TextWrapping="Wrap"
                          AutomationProperties.Name="小组件设置状态" />
               <Separator Margin="0,4,0,14" />

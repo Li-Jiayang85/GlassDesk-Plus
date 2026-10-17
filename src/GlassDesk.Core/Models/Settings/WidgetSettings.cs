@@ -10,7 +10,27 @@ public enum WidgetKind
     AudioPlayer = 4,
     Notes = 5,
     Todo = 6,
+
+    /// <summary>
+    /// 已移除的日历小组件。**不要在新代码里使用**。
+    /// </summary>
+    /// <remarks>
+    /// 保留这个成员只是因为 `settings.json` 用字符串存枚举（UseStringEnumConverter）；
+    /// 直接删掉会让旧配置里的 "Calendar" 反序列化失败，整份设置会被判为损坏而回退。
+    /// 加载时 <see cref="GlassDeskSettings.Normalize"/> 会把这条设置丢弃，界面与 Dock 也不再创建它。
+    /// </remarks>
     Calendar = 7,
+}
+
+/// <summary>小组件类型的可用性判定。</summary>
+public static class WidgetKinds
+{
+    /// <summary>是否仍在产品中提供。已移除的类型为 false。</summary>
+    public static bool IsAvailable(WidgetKind kind) => kind != WidgetKind.Calendar;
+
+    /// <summary>界面上提供的全部小组件类型（按固定顺序）。</summary>
+    public static WidgetKind[] Available { get; } =
+        [.. Enum.GetValues<WidgetKind>().Where(IsAvailable)];
 }
 
 /// <summary>

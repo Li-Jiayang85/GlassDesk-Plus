@@ -111,7 +111,6 @@ public sealed class GlassDeskSettings
             Pick(WidgetKind.AudioPlayer),
             Pick(WidgetKind.Notes),
             Pick(WidgetKind.Todo),
-            Pick(WidgetKind.Calendar),
         ];
         foreach (var widget in Widgets)
         {

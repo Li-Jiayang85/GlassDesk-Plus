@@ -51,7 +51,6 @@ public static class SettingsPageEditor
                     WidgetSettings.CreateDefault(WidgetKind.AudioPlayer),
                     WidgetSettings.CreateDefault(WidgetKind.Notes),
                     WidgetSettings.CreateDefault(WidgetKind.Todo),
-                    WidgetSettings.CreateDefault(WidgetKind.Calendar),
                 ];
                 break;
             default: throw new ArgumentException("此页面没有可重置的配置。", nameof(pageName));

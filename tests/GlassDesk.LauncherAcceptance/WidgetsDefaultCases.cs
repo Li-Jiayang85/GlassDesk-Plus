@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.IO;
 using System.Reflection;
 using System.Windows;
@@ -42,9 +42,9 @@ internal static partial class Program
             data.LoadAll();
             var settings = data.Settings.Current;
 
-            Check("小组件：新配置里八个小组件全部默认关闭", "W-01",
-                settings.Widgets.Count == 8 && settings.Widgets.All(w => !w.Enabled),
-                "8 个且 Enabled 全为 false",
+            Check("小组件：新配置里七个小组件全部默认关闭", "W-01",
+                settings.Widgets.Count == 7 && settings.Widgets.All(w => !w.Enabled),
+                "7 个且 Enabled 全为 false",
                 $"{settings.Widgets.Count} 个，开启 {settings.Widgets.Count(w => w.Enabled)} 个");
             Check("小组件：总开关不再起门禁作用（界面已移除）", "W-01",
                 settings.WidgetsEnabled,
@@ -110,21 +110,21 @@ internal static partial class Program
             legacy.Normalize();
             Check("小组件：旧配置 widgetsEnabled=false 迁移为各开关关闭", "W-06",
                 legacy.WidgetsEnabled && legacy.Widgets.All(w => !w.Enabled),
-                "迁移后字段为 true、八个小组件全关",
+                "迁移后字段为 true、七个小组件全关",
                 $"字段={legacy.WidgetsEnabled}、开启 {legacy.Widgets.Count(w => w.Enabled)} 个");
 
             // 重置该页应回到「全部关闭」。
             var reset = SettingsPageEditor.ResetPage(settings, "小组件");
             Check("小组件：恢复默认后回到全部关闭", "W-07",
                 reset.Widgets.All(w => !w.Enabled),
-                "八个全关",
+                "七个全关",
                 $"开启 {reset.Widgets.Count(w => w.Enabled)} 个");
 
             // 刷新频率是固定值：时钟 1 秒、天气 30 分钟，其余 1 秒。
             var clockMs = settings.Widgets.Single(w => w.Kind == WidgetKind.Clock).RefreshIntervalMs;
             var weatherMs = settings.Widgets.Single(w => w.Kind == WidgetKind.Weather).RefreshIntervalMs;
             var legacyWeather = new GlassDeskSettings();
-            legacyWeather.Normalize(); // 新实例的 Widgets 是空的，先补成八个
+            legacyWeather.Normalize(); // 新实例的 Widgets 是空的，先补成七个
             legacyWeather.Widgets.Single(w => w.Kind == WidgetKind.Weather).RefreshIntervalMs = 5000;
             legacyWeather.Normalize();
             Check("小组件：刷新频率为固定值（时钟 0.5 秒 / 天气 30 分钟）", "W-08",
@@ -133,7 +133,7 @@ internal static partial class Program
                 "时钟 500ms、天气 1800000ms；旧配置的 5000ms 被纠正",
                 $"时钟={clockMs}ms、天气={weatherMs}ms、旧配置纠正后={legacyWeather.Widgets.Single(w => w.Kind == WidgetKind.Weather).RefreshIntervalMs}ms");
 
-            // 界面上不再有刷新频率下拉框。
+            // 界面上不再有刷新频率下拉框；日历小组件也已被移除。
             var settingsWindow = new SettingsWindow();
             try
             {
@@ -144,8 +144,25 @@ internal static partial class Program
                     stillThere.Length == 0,
                     "四个下拉框都不存在",
                     stillThere.Length == 0 ? "全部已移除" : string.Join(",", stillThere));
+
+                Check("小组件：设置界面不再有日历开关", "W-10",
+                    settingsWindow.FindName("WidgetCalendarEnabledCheck") is null,
+                    "日历复选框不存在",
+                    settingsWindow.FindName("WidgetCalendarEnabledCheck") is null ? "已移除" : "仍然存在");
             }
             finally { settingsWindow.Close(); }
+
+            // 日历已从产品移除，但枚举值必须保留（旧配置里存的是 "Calendar" 字符串），
+            // 加载时的规范化要把它丢掉，否则每次启动都会把这条老设置再写回去。
+            var legacyCalendar = new GlassDeskSettings();
+            legacyCalendar.Normalize();
+            legacyCalendar.Widgets.Add(new WidgetSettings { Kind = WidgetKind.Calendar, Enabled = true });
+            legacyCalendar.Normalize();
+            Check("小组件：日历条目在规范化后被丢弃", "W-11",
+                !WidgetKinds.Available.Contains(WidgetKind.Calendar)
+                && legacyCalendar.Widgets.All(w => w.Kind != WidgetKind.Calendar),
+                "可用类型不含 Calendar、规范化后不保留该条目",
+                $"可用类型 {WidgetKinds.Available.Length} 个、规范化后 {legacyCalendar.Widgets.Count} 个");
         }
         catch (Exception ex)
         {

@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using GlassDesk.Core.Models.Settings;
@@ -33,7 +33,6 @@ public partial class SettingsWindow
             LoadWidgetControls(WidgetKind.AudioPlayer, WidgetAudioEnabledCheck, enabled, current);
             LoadWidgetControls(WidgetKind.Notes, WidgetNotesEnabledCheck, enabled, current);
             LoadWidgetControls(WidgetKind.Todo, WidgetTodoEnabledCheck, enabled, current);
-            LoadWidgetControls(WidgetKind.Calendar, WidgetCalendarEnabledCheck, enabled, current);
         }
         finally { _loadingWidgetsControls = false; }
     }
@@ -91,7 +90,6 @@ public partial class SettingsWindow
                 BuildWidget(WidgetKind.AudioPlayer, WidgetAudioEnabledCheck),
                 BuildWidget(WidgetKind.Notes, WidgetNotesEnabledCheck),
                 BuildWidget(WidgetKind.Todo, WidgetTodoEnabledCheck),
-                BuildWidget(WidgetKind.Calendar, WidgetCalendarEnabledCheck),
             ];
             var error = SettingsPageEditor.Validate(current);
             if (error is not null) throw new InvalidOperationException(error);
