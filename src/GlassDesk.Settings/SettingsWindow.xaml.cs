@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
@@ -63,7 +63,7 @@ public partial class SettingsWindow : GlassWindow
         }
 
         _sectionHeadings = [AppearanceSectionHeading, DockSectionHeading, LauncherSectionHeading,
-            ShortcutsSectionHeading, PerformanceSectionHeading, WidgetsSectionHeading, TraySectionHeading,
+            ShortcutsSectionHeading, PerformanceSectionHeading, WidgetsSectionHeading, 
             DesktopSectionHeading, BackupSectionHeading, AboutSectionHeading];
         PlannedPages =
         [
@@ -73,7 +73,6 @@ public partial class SettingsWindow : GlassWindow
             "快捷操作",
             "性能",
             "小组件",
-            "托盘",
             "桌面",
             "备份恢复",
             "关于",
@@ -84,7 +83,7 @@ public partial class SettingsWindow : GlassWindow
     private void OnSettingsWindowLoaded(object sender, RoutedEventArgs e) => SyncCategoryFromScroll();
 
     private bool CanResetSelectedPage => SettingsPageList.SelectedItem is string page
-        && page is "外观" or "Dock" or "启动台" or "快捷操作" or "性能" or "小组件" or "托盘" or "桌面";
+        && page is "外观" or "Dock" or "启动台" or "快捷操作" or "性能" or "小组件" or "桌面";
 
     private void UpdateResetPageButton() => ResetPageButton.IsEnabled = SettingsPageList.IsEnabled
         && _dataStore is not null && CanResetSelectedPage;
@@ -114,7 +113,6 @@ public partial class SettingsWindow : GlassWindow
         LoadInteractionControls();
         LoadPerformanceControls();
         LoadWidgetsControls();
-        LoadTrayControls();
         LoadDesktopStatus();
         RefreshDiagnostics(loadReport);
     }
@@ -195,6 +193,7 @@ public partial class SettingsWindow : GlassWindow
             ShowLauncherEntryCheckBox.IsChecked = dock.ShowLauncherEntry;
             ShowThisPcEntryCheckBox.IsChecked = dock.ShowThisPcEntry;
             ShowDesktopIconsEntryCheckBox.IsChecked = dock.ShowDesktopIconsEntry;
+            ShowSettingsEntryCheckBox.IsChecked = dock.ShowSettingsEntry;
             DockScaleSlider.Value = dock.SizeScale;
             DockScaleReadout.Text = $"{dock.SizeScale:P0} · 图标 {48 * dock.SizeScale:0} DIP";
             DockPlacementCombo.SelectedIndex = (int)dock.Placement;
@@ -206,7 +205,7 @@ public partial class SettingsWindow : GlassWindow
                 : display.ToDips((int)display.WorkArea.Width) - 32;
             var maximum = Math.Min(DockSettings.MaximumFrameLengthDip, Math.Max(64, availableWidthDip));
             var entryCount = (dock.ShowLauncherEntry ? 1 : 0) + (dock.ShowThisPcEntry ? 1 : 0)
-                + (dock.ShowDesktopIconsEntry ? 1 : 0);
+                + (dock.ShowDesktopIconsEntry ? 1 : 0) + (dock.ShowSettingsEntry ? 1 : 0);
             var minimum = Math.Min(Math.Max(DockSettings.MinimumFrameLengthDip,
                 22 + (DockSettings.FixedIconSize + DockSettings.FixedIconSpacing) * entryCount) * dock.SizeScale, maximum);
             DockFrameLengthSlider.Minimum = minimum;
@@ -358,6 +357,7 @@ public partial class SettingsWindow : GlassWindow
             ShowLauncherEntry = ShowLauncherEntryCheckBox.IsChecked == true,
             ShowThisPcEntry = ShowThisPcEntryCheckBox.IsChecked == true,
             ShowDesktopIconsEntry = ShowDesktopIconsEntryCheckBox.IsChecked == true,
+            ShowSettingsEntry = ShowSettingsEntryCheckBox.IsChecked == true,
             IconSize = DockSettings.FixedIconSize,
             IconSpacing = DockSettings.FixedIconSpacing,
             MagnificationPeak = DockSettings.FixedMagnificationPeak,
@@ -478,3 +478,5 @@ public partial class SettingsWindow : GlassWindow
 
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();
 }
+
+

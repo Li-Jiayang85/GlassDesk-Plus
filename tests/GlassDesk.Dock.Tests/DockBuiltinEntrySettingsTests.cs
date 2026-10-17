@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -28,19 +28,19 @@ public sealed class DockBuiltinEntrySettingsTests
                 var host = DockSettingsHost.Initialize(Dispatcher.CurrentDispatcher);
                 window.AttachServices(services, host, () => { });
                 window.Show();
-                var names = new[] { "LauncherButton", "ThisPcButton", "DesktopIconsButton" };
-                var fields = new[] { "ShowLauncherEntry", "ShowThisPcEntry", "ShowDesktopIconsEntry" };
+                var names = new[] { "LauncherButton", "ThisPcButton", "DesktopIconsButton", "SettingsButton" };
+                var fields = new[] { "ShowLauncherEntry", "ShowThisPcEntry", "ShowDesktopIconsEntry", "ShowSettingsEntry" };
                 var buttons = names.Select(n => Assert.IsType<Button>(window.FindName(n))).ToArray();
                 var row = Assert.IsType<StackPanel>(buttons[0].Parent);
                 Assert.Equal(buttons, row.Children.OfType<Button>().ToArray());
-                for (var mask = 0; mask < 8; mask++)
+                for (var mask = 0; mask < 16; mask++)
                 {
                     var settings = new DockSettings();
-                    for (var i = 0; i < 3; i++) SetEntry(settings, fields[i], (mask & (1 << i)) != 0);
+                    for (var i = 0; i < 4; i++) SetEntry(settings, fields[i], (mask & (1 << i)) != 0);
                     host.Update(settings);
                     window.UpdateLayout();
                     double x = 0;
-                    for (var i = 0; i < 3; i++)
+                    for (var i = 0; i < 4; i++)
                     {
                         var visible = (mask & (1 << i)) != 0;
                         Assert.Equal(visible ? Visibility.Visible : Visibility.Collapsed, buttons[i].Visibility);
@@ -70,7 +70,7 @@ public sealed class DockBuiltinEntrySettingsTests
                 data.LoadAll();
                 var host = DockSettingsHost.Initialize(Dispatcher.CurrentDispatcher);
                 window.AttachDataStore(data, null);
-                var fields = new[] { "ShowLauncherEntry", "ShowThisPcEntry", "ShowDesktopIconsEntry" };
+                var fields = new[] { "ShowLauncherEntry", "ShowThisPcEntry", "ShowDesktopIconsEntry", "ShowSettingsEntry" };
                 foreach (var field in fields)
                 {
                     var box = Assert.IsType<CheckBox>(window.FindName(field + "CheckBox"));
@@ -158,3 +158,4 @@ public sealed class DockBuiltinEntrySettingsTests
     private static bool GetEntry(DockSettings settings, string name) =>
         (bool)typeof(DockSettings).GetProperty(name)!.GetValue(settings)!;
 }
+

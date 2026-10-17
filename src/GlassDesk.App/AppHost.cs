@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -426,7 +426,6 @@ internal sealed partial class AppHost : IDisposable
                 _application.Dispatcher.BeginInvoke(RefreshLibraryForPerformance);
         };
         _settings.LauncherSettingsChanged += (_, settings) => _launcher?.ApplySettings(settings);
-        _settings.TraySettingsChanged += (_, _) => ApplyTraySettings();
 
         _launcher.ApplySettings(_data!.Settings.Current.Launcher);
 
@@ -531,67 +530,29 @@ internal sealed partial class AppHost : IDisposable
         LoadTrayIcon();
     }
 
-    /// <summary>
-    /// 按当前设置重建托盘图标，并让通知区域里的图标与之一致。
-    /// </summary>
+    /// <summary>重建托盘图标：内置品牌标识，句柄归 <see cref="TrayIcon"/> 所有。</summary>
     /// <remarks>
-    /// 设置里改了「显示图标」或换了自定义图标之后，这是唯一的落地点——
-    /// 句柄先备好再动 shell 状态，避免出现一瞬间没有图标的托盘。
+    /// 主题切换后也要走这里，因为标识是按浅色/深色背景分别绘制的。
+    /// 渲染失败时只记日志、不抛异常——托盘没有图标不该拖垮整个宿主。
     /// </remarks>
     private void LoadTrayIcon()
     {
         if (_messageWindow is null) return;
 
-        var settings = _data?.Settings.Current.Tray;
-        var handle = CreateTrayIconHandle(settings, 32);
-
-        _tray ??= new TrayIcon(_messageWindow.Handle);
-        if (settings?.ShowIcon == false || handle == 0)
-        {
-            // 关掉时连句柄一起放掉：托盘图标移除后再留着它是纯粹的泄漏。
-            _tray.Hide();
-            if (handle != 0) GlassDesk.Platform.IconFactory.DestroyIcon(handle);
-            return;
-        }
-
-        _tray.Update(handle, "GlassDesk");
-    }
-
-    /// <summary>
-    /// 自定义图标渲染失败（文件被删、格式不认识）时回退到内置标识，
-    /// 所以这里不抛异常，只可能返回 0——那表示连内置标识都拿不到，托盘应先保持隐藏。
-    /// </summary>
-    private nint CreateTrayIconHandle(GlassDesk.Core.Models.Settings.TraySettings? settings, int size)
-    {
-        if (settings is not null && _data is not null)
-        {
-            var custom = _data.Paths.ResolveManagedCustomIcon(settings.CustomIconFileName);
-            if (custom is not null)
-            {
-                try
-                {
-                    return TrayIconArtwork.CreateHandleFromFile(custom, size);
-                }
-                catch (Exception ex) when (ex is IOException or NotSupportedException or InvalidOperationException or ArgumentException)
-                {
-                    AppendToLog($"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] 自定义托盘图标不可用，已回退到内置图标：{ex.Message}");
-                }
-            }
-        }
-
+        nint handle;
         try
         {
-            return TrayIconArtwork.CreateHandle(size);
+            handle = TrayIconArtwork.CreateHandle(32);
         }
         catch (InvalidOperationException ex)
         {
-            AppendToLog($"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] 内置托盘图标不可用：{ex.Message}");
-            return 0;
+            AppendToLog($"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] 托盘图标不可用：{ex.Message}");
+            return;
         }
-    }
 
-    /// <summary>设置页改动了托盘外观后调用：立即重建托盘图标。</summary>
-    public void ApplyTraySettings() => LoadTrayIcon();
+        _tray ??= new TrayIcon(_messageWindow.Handle);
+        _tray.Update(handle, "GlassDesk");
+    }
 
     private nint OnMessageWindowProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
     {
@@ -844,3 +805,4 @@ internal sealed partial class AppHost : IDisposable
         }
     }
 }
+

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Text.Encodings.Web;
@@ -30,7 +30,6 @@ internal static partial class Program
 
     private const string Digest = "sha256:6bda132f4aeea26fecbc9c9b79a0b4672858ad3b297ee2e894409c81879d376c";
 
-    // 托盘那段要真建一个仅消息窗口（HwndSource），WPF 要求调用线程是 STA。
     [STAThread]
     private static int Main(string[] args)
     {
@@ -39,9 +38,6 @@ internal static partial class Program
             Console.WriteLine("== 离线：更新信息解析与安装包校验 ==");
             VerifyParsingOffline();
             VerifyBatchRemovalCore();
-            Console.WriteLine();
-            Console.WriteLine("== 离线：托盘图标 ==");
-            VerifyTrayIconOffline();
 
             if (args.Contains("--online"))
             {
@@ -334,4 +330,5 @@ internal static partial class Program
         return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
     }
 }
+
 

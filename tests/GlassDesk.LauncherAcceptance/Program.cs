@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
@@ -34,6 +34,7 @@ internal static partial class Program
         if (args.Contains("--full-host-performance")) return VerifyFullHostPerformance(args);
         if (args.Contains("--full-host-input")) return VerifyFullHostInput(args);
         if (args.Contains("--batch-delete")) return VerifyBatchDelete(args);
+        if (args.Contains("--dock-entries")) return VerifyDockEntryToggles(args);
         var report = Argument(args, "--report") ?? Path.Combine(Environment.CurrentDirectory, "phase5-wpf.json");
         var supplied = Argument(args, "--data-dir");
         var root = supplied is null ? Path.Combine(Path.GetTempPath(), "GlassDesk-P5-Wpf-" + Guid.NewGuid().ToString("n")) : Path.GetFullPath(supplied);
@@ -551,3 +552,4 @@ internal static partial class Program
         return new PixelRect(x, y, Math.Max(left.Right, right.Right) - x, Math.Max(left.Bottom, right.Bottom) - y);
     }
 }
+

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using GlassDesk.Core.Input;
 using GlassDesk.Core.Serialization;
 
@@ -19,7 +19,6 @@ public static class SettingsPageEditor
         target.Display = source.Display;
         target.Performance = source.Performance;
         target.DesktopTaskbar = source.DesktopTaskbar;
-        target.Tray = source.Tray;
         target.WidgetsEnabled = source.WidgetsEnabled;
         target.Widgets = source.Widgets;
     }
@@ -41,7 +40,6 @@ public static class SettingsPageEditor
             case "显示器": copy.Display = new(); copy.Dock.TargetDisplayId = null; break;
             case "性能": copy.Performance = new(); break;
             case "桌面与任务栏": copy.DesktopTaskbar = new(); break;
-            case "托盘": copy.Tray = new(); break;
             case "小组件":
                 copy.WidgetsEnabled = true;
                 copy.Widgets =
@@ -98,9 +96,6 @@ public static class SettingsPageEditor
                 || !Range(widget.RefreshIntervalMs, WidgetSettings.MinimumRefreshMs, WidgetSettings.MaximumRefreshMs))
                 return "小组件数值超出允许范围。";
         }
-        if (settings.Tray?.CustomIconFileName is { Length: > 0 } trayIcon
-            && (trayIcon.Contains(Path.DirectorySeparatorChar) || trayIcon.Contains(Path.AltDirectorySeparatorChar)))
-            return "托盘图标只能引用数据目录 icons 下的文件名。";
         return null;
     }
 }

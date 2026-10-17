@@ -517,19 +517,22 @@ public partial class DockWindow : GlassWindow
         DockContentLayer.Margin = new Thickness(10 * scale, 8 * scale, 10 * scale, 8 * scale);
         if ((LauncherButton.Visibility == Visibility.Visible) != settings.ShowLauncherEntry
             || (ThisPcButton.Visibility == Visibility.Visible) != settings.ShowThisPcEntry
-            || (DesktopIconsButton.Visibility == Visibility.Visible) != settings.ShowDesktopIconsEntry)
+            || (DesktopIconsButton.Visibility == Visibility.Visible) != settings.ShowDesktopIconsEntry
+            || (SettingsButton.Visibility == Visibility.Visible) != settings.ShowSettingsEntry)
             ResetEntryHover();
         LauncherButton.Visibility = settings.ShowLauncherEntry ? Visibility.Visible : Visibility.Collapsed;
         ThisPcButton.Visibility = settings.ShowThisPcEntry ? Visibility.Visible : Visibility.Collapsed;
         DesktopIconsButton.Visibility = settings.ShowDesktopIconsEntry ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var button in new[] { LauncherButton, ThisPcButton, DesktopIconsButton })
+        SettingsButton.Visibility = settings.ShowSettingsEntry ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var button in new[] { LauncherButton, ThisPcButton, DesktopIconsButton, SettingsButton })
         {
             button.Width = 48 * scale;
             button.Height = 64 * scale;
             button.Margin = new Thickness(0, 0, 8 * scale, 0);
         }
         LaunchpadTile.Width = LaunchpadTile.Height = ThisPcTile.Width = ThisPcTile.Height
-            = DesktopIconsTile.Width = DesktopIconsTile.Height = 48 * scale;
+            = DesktopIconsTile.Width = DesktopIconsTile.Height
+            = SettingsTile.Width = SettingsTile.Height = 48 * scale;
         LaunchpadTile.CornerRadius = new CornerRadius(16 * scale);
         PanelCornerRadius = new CornerRadius(40 * scale);
 
@@ -551,8 +554,14 @@ public partial class DockWindow : GlassWindow
     private double DockScale => double.IsFinite(Settings.SizeScale)
         ? Math.Clamp(Settings.SizeScale, DockSettings.MinimumSizeScale, DockSettings.MaximumSizeScale) : 1;
 
+    /// <summary>已启用的内置入口共占多少横向空间（每个 48 + 8 间距）。</summary>
+    /// <remarks>
+    /// 齿轮同样占位，所以必须参与计算；它原先是「永远显示但不算宽度」，
+    /// 固定外框偏短时磁贴条会压到它上面。补齐开关后一并按实际显示数量统计。
+    /// </remarks>
     private double BuiltinEntryWidthDip => 56 * ((Settings.ShowLauncherEntry ? 1 : 0)
-        + (Settings.ShowThisPcEntry ? 1 : 0) + (Settings.ShowDesktopIconsEntry ? 1 : 0));
+        + (Settings.ShowThisPcEntry ? 1 : 0) + (Settings.ShowDesktopIconsEntry ? 1 : 0)
+        + (Settings.ShowSettingsEntry ? 1 : 0));
 
     private double ResolveEffectiveFrameLengthDip(double requested, DisplayInfo? display)
     {

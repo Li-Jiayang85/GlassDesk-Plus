@@ -60,6 +60,14 @@ internal static partial class Program
             window.Show();
             Pump(TimeSpan.FromMilliseconds(200));
 
+            // 固定从第 1 页起步：否则上一次的状态可能让断言读到第 2 页的磁贴（曾偶发过）。
+            var pageText = (TextBlock)window.FindName("PageText")!;
+            for (var guard = 0; guard < 8 && !pageText.Text.StartsWith("1 /", StringComparison.Ordinal); guard++)
+            {
+                window.NavigatePage(-1);
+                Pump(TimeSpan.FromMilliseconds(120));
+            }
+
             var grid = (UniformGrid)window.FindName("TileGrid")!;
             var addButton = (Button)window.FindName("AddButton")!;
             var cancelButton = (Button)window.FindName("SelectionCancelButton")!;

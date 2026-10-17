@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -419,7 +419,6 @@ public partial class SettingsWindow
         if (page == "启动台") LauncherSettingsChanged?.Invoke(this, current.Launcher);
         if (page == "性能") PerformanceSettingsChanged?.Invoke(this, EventArgs.Empty);
         if (page == "小组件") WidgetSettingsHost.Current?.Update(current.WidgetsEnabled, current.Widgets);
-        if (page == "托盘") TraySettingsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void ReloadPage(string page)
@@ -432,7 +431,6 @@ public partial class SettingsWindow
             case "快捷操作": LoadInteractionControls(); break;
             case "性能": LoadPerformanceControls(); break;
             case "小组件": LoadWidgetsControls(); WidgetSettingsHost.Current?.Update(_dataStore!.Settings.Current.WidgetsEnabled, _dataStore!.Settings.Current.Widgets); break;
-            case "托盘": LoadTrayControls(); TraySettingsChanged?.Invoke(this, EventArgs.Empty); break;
             case "桌面": LoadDesktopStatus(); break;
         }
     }
@@ -441,7 +439,6 @@ public partial class SettingsWindow
     {
         "外观" => AppearanceStatus, "Dock" => DockSettingsStatus, "启动台" => LauncherSettingsStatus,
         "快捷操作" => InteractionSettingsStatus, "性能" => PerformanceSettingsStatus, "小组件" => WidgetsSettingsStatus,
-        "托盘" => TraySettingsStatus,
         _ => DesktopSettingsStatus,
     };
 }

@@ -28,6 +28,15 @@ public sealed class DockSettings
     public bool ShowDesktopIconsEntry { get; set; } = true;
 
     /// <summary>
+    /// 是否显示「设置」入口（齿轮）。
+    /// </summary>
+    /// <remarks>
+    /// 这一项原本没有开关，齿轮永远在；补齐后四个内置入口都能在
+    /// 设置 → Dock → 左侧固定图标 里单独隐藏。默认显示，与旧配置一致。
+    /// </remarks>
+    public bool ShowSettingsEntry { get; set; } = true;
+
+    /// <summary>
     /// Dock 玻璃外框的横向长度，单位为 DIP。零表示继续按内容自动调整，
     /// 正数表示固定外框长度；图标尺寸与 Dock 厚度不受此值影响。
     /// </summary>

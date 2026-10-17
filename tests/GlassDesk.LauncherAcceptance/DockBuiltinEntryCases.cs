@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
@@ -53,18 +53,18 @@ internal static partial class Program
             ((ListBox)settings.FindName("SettingsPageList")!).SelectedIndex = 1;
             ((Slider)settings.FindName("DockScaleSlider")!).Value = 1;
             Pump(TimeSpan.FromMilliseconds(300));
-            var buttons = new[] { "LauncherButton", "ThisPcButton", "DesktopIconsButton" }
+            var buttons = new[] { "LauncherButton", "ThisPcButton", "DesktopIconsButton", "SettingsButton" }
                 .Select(name => (Button)dock.FindName(name)!).ToArray();
-            var boxes = new[] { "ShowLauncherEntryCheckBox", "ShowThisPcEntryCheckBox", "ShowDesktopIconsEntryCheckBox" }
+            var boxes = new[] { "ShowLauncherEntryCheckBox", "ShowThisPcEntryCheckBox", "ShowDesktopIconsEntryCheckBox", "ShowSettingsEntryCheckBox" }
                 .Select(name => (CheckBox)settings.FindName(name)!).ToArray();
-            for (var mask = 0; mask < 8; mask++)
+            for (var mask = 0; mask < 16; mask++)
             {
-                for (var i = 0; i < 3; i++) boxes[i].IsChecked = (mask & (1 << i)) != 0;
+                for (var i = 0; i < 4; i++) boxes[i].IsChecked = (mask & (1 << i)) != 0;
                 Pump(TimeSpan.FromMilliseconds(100));
                 var row = (StackPanel)buttons[0].Parent;
                 double x = 0;
                 var valid = true;
-                for (var i = 0; i < 3; i++)
+                for (var i = 0; i < 4; i++)
                 {
                     var visible = (mask & (1 << i)) != 0;
                     valid &= buttons[i].Visibility == (visible ? Visibility.Visible : Visibility.Collapsed);
@@ -128,3 +128,4 @@ internal static partial class Program
         return _failed == 0 ? 0 : 1;
     }
 }
+
