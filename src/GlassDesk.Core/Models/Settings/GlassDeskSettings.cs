@@ -117,8 +117,8 @@ public sealed class GlassDeskSettings
         {
             widget.Size = double.IsFinite(widget.Size)
                 ? Math.Clamp(widget.Size, WidgetSettings.MinimumSize, WidgetSettings.MaximumSize) : 1.0;
-            widget.RefreshIntervalMs = Math.Clamp(widget.RefreshIntervalMs,
-                WidgetSettings.MinimumRefreshMs, WidgetSettings.MaximumRefreshMs);
+            // 刷新频率已是固定值（界面上不再提供），旧配置里的选择在这里纠正。
+            widget.RefreshIntervalMs = WidgetSettings.RefreshIntervalFor(widget.Kind);
         }
 
         WidgetSettings Pick(WidgetKind kind) =>

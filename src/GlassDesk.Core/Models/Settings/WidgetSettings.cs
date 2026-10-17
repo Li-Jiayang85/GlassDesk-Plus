@@ -62,7 +62,21 @@ public sealed class WidgetSettings
         Enabled = false,
         Size = 1.0,
         DockDocked = true,
-        RefreshIntervalMs = 1800000,
+        RefreshIntervalMs = RefreshIntervalFor(kind),
         WeatherLocation = "",
+    };
+
+    /// <summary>
+    /// 各小组件的固定刷新频率（毫秒）。
+    /// </summary>
+    /// <remarks>
+    /// 刷新频率不再暴露给用户：它是实现细节，选错了只会白白耗电或让数据显得很旧。
+    /// 时钟这类每秒才准的取 1 秒；天气来自网络、更新本来就慢，取 30 分钟。
+    /// 设置界面已没有对应控件，加载时也会把旧配置里的值纠正到这里。
+    /// </remarks>
+    public static int RefreshIntervalFor(WidgetKind kind) => kind switch
+    {
+        WidgetKind.Weather => 1800000, // 30 分钟
+        _ => 1000,                     // 1 秒
     };
 }

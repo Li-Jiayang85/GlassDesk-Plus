@@ -11,12 +11,6 @@ public partial class SettingsWindow
     private bool _loadingWidgetsControls = true;
     private DispatcherTimer? _widgetsSaveTimer;
 
-    /// <summary>刷新频率下拉项对应的毫秒值（低帧率节流）。</summary>
-    private static readonly int[] WidgetRefreshOptions = [1000, 2000, 5000];
-
-    /// <summary>天气等低频小组件的刷新频率选项。</summary>
-    private static readonly int[] WidgetSlowRefreshOptions = [5000, 10000, 30000];
-
     private void LoadWidgetsControls()
     {
         _loadingWidgetsControls = true;
@@ -26,61 +20,39 @@ public partial class SettingsWindow
             // 没有总开关：每个小组件勾不勾就是开不开，控件始终可用（只受数据是否就绪影响）。
             var enabled = _dataStore is not null;
 
-            LoadWidgetControls(WidgetKind.Clock,
-                WidgetClockEnabledCheck, WidgetClockRefreshCombo, enabled, current, WidgetRefreshOptions);
-            LoadWidgetControls(WidgetKind.Date,
-                WidgetDateEnabledCheck, WidgetDateRefreshCombo, enabled, current, WidgetRefreshOptions);
-            LoadWidgetControls(WidgetKind.SystemMonitor,
-                WidgetMonitorEnabledCheck, WidgetMonitorRefreshCombo, enabled, current, WidgetRefreshOptions);
-            LoadWidgetControls(WidgetKind.Weather,
-                WidgetWeatherEnabledCheck, WidgetWeatherRefreshCombo, enabled, current, WidgetSlowRefreshOptions);
+            LoadWidgetControls(WidgetKind.Clock, WidgetClockEnabledCheck, enabled, current);
+            LoadWidgetControls(WidgetKind.Date, WidgetDateEnabledCheck, enabled, current);
+            LoadWidgetControls(WidgetKind.SystemMonitor, WidgetMonitorEnabledCheck, enabled, current);
+            LoadWidgetControls(WidgetKind.Weather, WidgetWeatherEnabledCheck, enabled, current);
             // 天气城市：存在设置里，启动时自动填写（留空则按 IP 自动定位）。
             if (WidgetWeatherCityBox is not null)
             {
                 WidgetWeatherCityBox.Text = current?.Widgets.FirstOrDefault(w => w.Kind == WidgetKind.Weather)?.WeatherLocation ?? "";
                 WidgetWeatherCityBox.IsEnabled = enabled;
             }
-            LoadWidgetControls(WidgetKind.AudioPlayer,
-                WidgetAudioEnabledCheck, null, enabled, current, WidgetRefreshOptions);
-            LoadWidgetControls(WidgetKind.Notes,
-                WidgetNotesEnabledCheck, null, enabled, current, WidgetRefreshOptions);
-            LoadWidgetControls(WidgetKind.Todo,
-                WidgetTodoEnabledCheck, null, enabled, current, WidgetRefreshOptions);
-            LoadWidgetControls(WidgetKind.Calendar,
-                WidgetCalendarEnabledCheck, null, enabled, current, WidgetRefreshOptions);
+            LoadWidgetControls(WidgetKind.AudioPlayer, WidgetAudioEnabledCheck, enabled, current);
+            LoadWidgetControls(WidgetKind.Notes, WidgetNotesEnabledCheck, enabled, current);
+            LoadWidgetControls(WidgetKind.Todo, WidgetTodoEnabledCheck, enabled, current);
+            LoadWidgetControls(WidgetKind.Calendar, WidgetCalendarEnabledCheck, enabled, current);
         }
         finally { _loadingWidgetsControls = false; }
     }
 
+    /// <summary>
+    /// 只回填「是否启用」。刷新频率是固定值（见 <see cref="WidgetSettings.RefreshIntervalFor"/>），
+    /// 不再暴露给用户，所以界面上没有对应控件。
+    /// </summary>
     private static void LoadWidgetControls(WidgetKind kind,
-        CheckBox enabledCheck, ComboBox? refreshCombo,
-        bool enabled, GlassDeskSettings? current, int[] refreshOptions)
+        CheckBox enabledCheck, bool enabled, GlassDeskSettings? current)
     {
         var widget = current?.Widgets.FirstOrDefault(w => w.Kind == kind);
         enabledCheck.IsChecked = widget?.Enabled ?? false;
         enabledCheck.IsEnabled = enabled;
-        if (refreshCombo is not null)
-        {
-            refreshCombo.SelectedIndex = IndexOfRefresh(widget?.RefreshIntervalMs ?? refreshOptions[0], refreshOptions);
-            refreshCombo.IsEnabled = enabled;
-        }
     }
 
-    private static int IndexOfRefresh(int ms, int[] options)
-    {
-        for (var i = 0; i < options.Length; i++)
-        {
-            if (ms <= options[i] * 1.5)
-            {
-                return i;
-            }
-        }
-        return options.Length - 1;
-    }
+    private void OnWidgetsControlChanged(object sender, RoutedEventArgs e) => ScheduleSaveWidgets();
 
-        private void OnWidgetsControlChanged(object sender, RoutedEventArgs e) => ScheduleSaveWidgets();
-
-    /// <summary>滑块拖动期间用 400ms 防抖合并保存，避免每帧都写盘并重建 Dock。</summary>
+    /// <summary>控件变更用 400ms 防抖合并保存，避免每帧都写盘并重建 Dock。</summary>
     private void ScheduleSaveWidgets()
     {
         if (_loadingWidgetsControls || _dataStore is null) return;
@@ -104,7 +76,6 @@ public partial class SettingsWindow
     {
         if (_loadingWidgetsControls || _dataStore is null) return;
         var current = _dataStore.Settings.Current;
-        var previousEnabled = current.WidgetsEnabled;
         var previousWidgets = current.Widgets;
         try
         {
@@ -112,23 +83,15 @@ public partial class SettingsWindow
             current.WidgetsEnabled = true;
             current.Widgets =
             [
-                BuildWidget(WidgetKind.Clock,
-                    WidgetClockEnabledCheck, WidgetClockRefreshCombo, WidgetRefreshOptions),
-                BuildWidget(WidgetKind.Date,
-                    WidgetDateEnabledCheck, WidgetDateRefreshCombo, WidgetRefreshOptions),
-                BuildWidget(WidgetKind.SystemMonitor,
-                    WidgetMonitorEnabledCheck, WidgetMonitorRefreshCombo, WidgetRefreshOptions),
-                BuildWidget(WidgetKind.Weather,
-                    WidgetWeatherEnabledCheck, WidgetWeatherRefreshCombo, WidgetSlowRefreshOptions,
+                BuildWidget(WidgetKind.Clock, WidgetClockEnabledCheck),
+                BuildWidget(WidgetKind.Date, WidgetDateEnabledCheck),
+                BuildWidget(WidgetKind.SystemMonitor, WidgetMonitorEnabledCheck),
+                BuildWidget(WidgetKind.Weather, WidgetWeatherEnabledCheck,
                     WidgetWeatherCityBox?.Text.Trim() ?? ""),
-                BuildWidget(WidgetKind.AudioPlayer,
-                    WidgetAudioEnabledCheck, null, WidgetRefreshOptions),
-                BuildWidget(WidgetKind.Notes,
-                    WidgetNotesEnabledCheck, null, WidgetRefreshOptions),
-                BuildWidget(WidgetKind.Todo,
-                    WidgetTodoEnabledCheck, null, WidgetRefreshOptions),
-                BuildWidget(WidgetKind.Calendar,
-                    WidgetCalendarEnabledCheck, null, WidgetRefreshOptions),
+                BuildWidget(WidgetKind.AudioPlayer, WidgetAudioEnabledCheck),
+                BuildWidget(WidgetKind.Notes, WidgetNotesEnabledCheck),
+                BuildWidget(WidgetKind.Todo, WidgetTodoEnabledCheck),
+                BuildWidget(WidgetKind.Calendar, WidgetCalendarEnabledCheck),
             ];
             var error = SettingsPageEditor.Validate(current);
             if (error is not null) throw new InvalidOperationException(error);
@@ -136,7 +99,6 @@ public partial class SettingsWindow
         }
         catch (Exception exception)
         {
-            current.WidgetsEnabled = previousEnabled;
             current.Widgets = previousWidgets;
             LoadWidgetsControls();
             WidgetsSettingsStatus.Text = "保存失败，已恢复原设置：" + exception.Message;
@@ -146,15 +108,13 @@ public partial class SettingsWindow
         WidgetsSettingsStatus.Text = "已保存并应用。";
     }
 
+    /// <summary>构建单个小组件的设置；刷新频率取固定值，不来自界面。</summary>
     private static WidgetSettings BuildWidget(WidgetKind kind,
-        CheckBox enabledCheck, ComboBox? refreshCombo, int[] refreshOptions,
-        string weatherLocation = "") => new()
+        CheckBox enabledCheck, string weatherLocation = "") => new()
     {
         Kind = kind,
         Enabled = enabledCheck.IsChecked == true,
-        RefreshIntervalMs = refreshCombo is null
-            ? refreshOptions[0]
-            : refreshOptions[Math.Clamp(refreshCombo.SelectedIndex, 0, refreshOptions.Length - 1)],
+        RefreshIntervalMs = WidgetSettings.RefreshIntervalFor(kind),
         // 只有天气会传进来，其它小组件恒为空串。
         WeatherLocation = weatherLocation,
     };

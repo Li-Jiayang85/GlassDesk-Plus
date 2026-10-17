@@ -296,54 +296,18 @@
               <CheckBox x:Name="WidgetClockEnabledCheck" Margin="0,0,0,4" Content="启用时钟小组件"
                         AutomationProperties.Name="启用时钟小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-<DockPanel Margin="0,4,0,0">
-                <TextBlock Text="刷新频率" VerticalAlignment="Center" />
-                <ComboBox x:Name="WidgetClockRefreshCombo" Width="96" Margin="12,0,0,0" HorizontalAlignment="Left" IsEnabled="False"
-                          SelectionChanged="OnWidgetsControlChanged">
-                  <ComboBoxItem Content="1 秒" />
-                  <ComboBoxItem Content="2 秒" />
-                  <ComboBoxItem Content="5 秒" />
-                </ComboBox>
-              </DockPanel>
               <TextBlock Margin="0,8,0,4" FontWeight="SemiBold" Text="日期" />
               <CheckBox x:Name="WidgetDateEnabledCheck" Margin="0,0,0,4" Content="启用日期小组件"
                         AutomationProperties.Name="启用日期小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-<DockPanel Margin="0,4,0,0">
-                <TextBlock Text="刷新频率" VerticalAlignment="Center" />
-                <ComboBox x:Name="WidgetDateRefreshCombo" Width="96" Margin="12,0,0,0" HorizontalAlignment="Left" IsEnabled="False"
-                          SelectionChanged="OnWidgetsControlChanged">
-                  <ComboBoxItem Content="1 秒" />
-                  <ComboBoxItem Content="2 秒" />
-                  <ComboBoxItem Content="5 秒" />
-                </ComboBox>
-              </DockPanel>
               <TextBlock Margin="0,8,0,4" FontWeight="SemiBold" Text="系统监控" />
               <CheckBox x:Name="WidgetMonitorEnabledCheck" Margin="0,0,0,4" Content="启用系统监控小组件（CPU / 内存占用）"
                         AutomationProperties.Name="启用系统监控小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-<DockPanel Margin="0,4,0,0">
-                <TextBlock Text="刷新频率" VerticalAlignment="Center" />
-                <ComboBox x:Name="WidgetMonitorRefreshCombo" Width="96" Margin="12,0,0,0" HorizontalAlignment="Left" IsEnabled="False"
-                          SelectionChanged="OnWidgetsControlChanged">
-                  <ComboBoxItem Content="1 秒" />
-                  <ComboBoxItem Content="2 秒" />
-                  <ComboBoxItem Content="5 秒" />
-                </ComboBox>
-              </DockPanel>
               <TextBlock Margin="0,10,0,4" FontWeight="SemiBold" Text="天气" />
               <CheckBox x:Name="WidgetWeatherEnabledCheck" Margin="0,0,0,4" Content="启用天气小组件"
                         AutomationProperties.Name="启用天气小组件" IsEnabled="False"
                         Checked="OnWidgetsControlChanged" Unchecked="OnWidgetsControlChanged" />
-<DockPanel Margin="0,4,0,0">
-                <TextBlock Text="刷新频率" VerticalAlignment="Center" />
-                <ComboBox x:Name="WidgetWeatherRefreshCombo" Width="96" Margin="12,0,0,0" HorizontalAlignment="Left" IsEnabled="False"
-                          SelectionChanged="OnWidgetsControlChanged">
-                  <ComboBoxItem Content="5 秒" />
-                  <ComboBoxItem Content="10 秒" />
-                  <ComboBoxItem Content="30 秒" />
-                </ComboBox>
-              </DockPanel>
               <DockPanel Margin="0,6,0,0">
                 <TextBlock Text="城市 / 区" VerticalAlignment="Center" Margin="0,0,12,0" />
                 <TextBox x:Name="WidgetWeatherCityBox" MinWidth="180" IsEnabled="False"

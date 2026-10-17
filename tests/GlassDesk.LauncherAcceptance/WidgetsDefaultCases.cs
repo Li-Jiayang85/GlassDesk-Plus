@@ -7,6 +7,7 @@ using GlassDesk.AppServices;
 using GlassDesk.Core.Models.Settings;
 using GlassDesk.Core.Storage;
 using GlassDesk.Dock;
+using GlassDesk.Settings;
 using GlassDesk.UI.Settings;
 
 /// <summary>
@@ -118,6 +119,33 @@ internal static partial class Program
                 reset.Widgets.All(w => !w.Enabled),
                 "八个全关",
                 $"开启 {reset.Widgets.Count(w => w.Enabled)} 个");
+
+            // 刷新频率是固定值：时钟 1 秒、天气 30 分钟，其余 1 秒。
+            var clockMs = settings.Widgets.Single(w => w.Kind == WidgetKind.Clock).RefreshIntervalMs;
+            var weatherMs = settings.Widgets.Single(w => w.Kind == WidgetKind.Weather).RefreshIntervalMs;
+            var legacyWeather = new GlassDeskSettings();
+            legacyWeather.Normalize(); // 新实例的 Widgets 是空的，先补成八个
+            legacyWeather.Widgets.Single(w => w.Kind == WidgetKind.Weather).RefreshIntervalMs = 5000;
+            legacyWeather.Normalize();
+            Check("小组件：刷新频率为固定值（时钟 1 秒 / 天气 30 分钟）", "W-08",
+                clockMs == 1000 && weatherMs == 1_800_000
+                && legacyWeather.Widgets.Single(w => w.Kind == WidgetKind.Weather).RefreshIntervalMs == 1_800_000,
+                "时钟 1000ms、天气 1800000ms；旧配置的 5000ms 被纠正",
+                $"时钟={clockMs}ms、天气={weatherMs}ms、旧配置纠正后={legacyWeather.Widgets.Single(w => w.Kind == WidgetKind.Weather).RefreshIntervalMs}ms");
+
+            // 界面上不再有刷新频率下拉框。
+            var settingsWindow = new SettingsWindow();
+            try
+            {
+                settingsWindow.AttachDataStore(data, null);
+                var removed = new[] { "WidgetClockRefreshCombo", "WidgetDateRefreshCombo", "WidgetMonitorRefreshCombo", "WidgetWeatherRefreshCombo" };
+                var stillThere = removed.Where(name => settingsWindow.FindName(name) is not null).ToArray();
+                Check("小组件：设置界面不再展示刷新频率选择", "W-09",
+                    stillThere.Length == 0,
+                    "四个下拉框都不存在",
+                    stillThere.Length == 0 ? "全部已移除" : string.Join(",", stillThere));
+            }
+            finally { settingsWindow.Close(); }
         }
         catch (Exception ex)
         {
