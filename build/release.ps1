@@ -113,7 +113,10 @@ try {
         'X-GitHub-Api-Version' = '2022-11-28'
         'User-Agent'           = 'glassdesk-release'
     }
-    $bodyText = if (Test-Path $NotesFile) { Get-Content $NotesFile -Raw -Encoding UTF8 } else { $ReleaseTitle }
+    # 必须显式 [string]：Get-Content -Raw 返回的字符串带 ETS 属性（PSPath/PSParentPath…），
+    # PowerShell 5.1 的 ConvertTo-Json 会把它当成对象序列化，body 会变成 {"value": …} 这样的
+    # 垃圾，GitHub 上显示出来就是一串哈希表文本而不是 Markdown。
+    $bodyText = if (Test-Path $NotesFile) { [string](Get-Content $NotesFile -Raw -Encoding UTF8) } else { $ReleaseTitle }
     Write-Host "release repo: $ReleaseRepository"
 
     $releaseUrl = "https://api.github.com/repos/$ReleaseRepository/releases"
