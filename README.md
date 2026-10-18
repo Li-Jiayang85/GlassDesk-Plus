@@ -38,10 +38,11 @@ Windows 11 桌面美化：一块会呼吸的毛玻璃程序坞、一个能搜索
 
 ## 版本
 
-当前版本 **1.4.10**。每个标签是对应版本的完整源码快照，安装包见 [Releases](https://github.com/Li-Jiayang85/GlassDesk-Plus/releases)。
+当前版本 **1.4.11**。每个标签是对应版本的完整源码快照，安装包见 [Releases](https://github.com/Li-Jiayang85/GlassDesk-Plus/releases)。
 
 | 版本 | 主要变化 |
 |---|---|
+| 1.4.11 | 修发布说明被序列化成哈希表文本 |
 | 1.4.10 | Dock 改为非置顶；修遮挡误收起与桌面歌词挤没 Dock |
 | 1.4.9 | 最大化/全屏时 Dock 让位；透明度滑杆整段有效 |
 | 1.4.8 | 移除日历小组件 |
