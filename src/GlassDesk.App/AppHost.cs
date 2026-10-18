@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -415,7 +415,13 @@ internal sealed partial class AppHost : IDisposable
         _launcher.AttachServices(_services!, _loadReport?.LibraryStatus != LoadStatus.Unrecoverable);
         _launcher.DockPinRequested = PinToDockFromLauncher;
         _launcher.InternalDragStarted += (_, _) => _dock?.RaiseAboveLauncherDuringDrag();
-        _launcher.InternalDragFinished += (_, _) => _launcher?.RaiseAboveDockAfterDrag();
+        _launcher.InternalDragFinished += (_, _) =>
+        {
+            _launcher?.RaiseAboveDockAfterDrag();
+            // 拖拽期间程序坞被临时提到置顶，结束后必须放回普通层，
+            // 否则它会一直压在普通窗口上面——这与“程序坞不置顶”的设计相反。
+            _dock?.ReturnBehindNormalWindows();
+        };
         _services!.LibraryChanged += (_, _) =>
         {
             if (_application.Dispatcher.CheckAccess())

@@ -5,7 +5,20 @@ using GlassDesk.Platform.Displays;
 namespace GlassDesk.Platform.Shell;
 public static class ForegroundCoverage
 {
-    public static bool IsCovered(PixelRect target)
+    /// <summary>前台窗口是否与目标矩形有任何重叠。</summary>
+    public static bool IsCovered(PixelRect target) => Overlaps(target, requireFull: false);
+
+    /// <summary>
+    /// 前台窗口是否把目标矩形**整个**盖住。
+    /// </summary>
+    /// <remarks>
+    /// 程序坞自己的收起判定要用这一档：只要有窗口压到边缘一角（例如音乐软件的桌面歌词、
+    /// 悬浮工具栏）就收起，用户看到的就是「鼠标一靠近程序坞它反而消失」。整块被盖住时，
+    /// 程序坞本来也看不见，这时收起才不会影响可用性。
+    /// </remarks>
+    public static bool IsFullyCovered(PixelRect target) => Overlaps(target, requireFull: true);
+
+    private static bool Overlaps(PixelRect target, bool requireFull)
     {
         if (target.Width <= 0 || target.Height <= 0) return false;
         nint hwnd = GetForegroundWindow();
@@ -17,7 +30,12 @@ public static class ForegroundCoverage
         if (DwmGetWindowAttribute(hwnd,14,out int cloaked,sizeof(int)) == 0 && cloaked != 0) return false;
         Rect rect;
         if (DwmGetWindowAttribute(hwnd,9,out rect,Marshal.SizeOf<Rect>()) != 0 && !GetWindowRect(hwnd,out rect)) return false;
-        return rect.Left < (long)target.X + target.Width && rect.Right > target.X && rect.Top < (long)target.Y + target.Height && rect.Bottom > target.Y;
+        if (!requireFull)
+        {
+            return rect.Left < (long)target.X + target.Width && rect.Right > target.X && rect.Top < (long)target.Y + target.Height && rect.Bottom > target.Y;
+        }
+        return rect.Left <= target.X && rect.Top <= target.Y
+            && rect.Right >= (long)target.X + target.Width && rect.Bottom >= (long)target.Y + target.Height;
     }
     [StructLayout(LayoutKind.Sequential)] private struct Rect { public int Left,Top,Right,Bottom; }
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();

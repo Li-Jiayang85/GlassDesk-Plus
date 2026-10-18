@@ -12,9 +12,38 @@ namespace GlassDesk.Platform;
 public static class WindowStyles
 {
     private static readonly nint HwndTopmost = new(-1);
+    private static readonly nint HwndNoTopmost = new(-2);
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoMove = 0x0002;
     private const uint SwpNoActivate = 0x0010;
+
+    /// <summary>
+    /// 把窗口放回普通层（取消 WS_EX_TOPMOST），不移动、不改大小、不抢焦点。
+    /// </summary>
+    /// <remarks>
+    /// 程序坞平时不置顶，只在启动台内部拖拽期间临时提上来；拖拽结束必须显式放回去，
+    /// 否则 SetWindowPos(HWND_TOPMOST) 留下的样式位会让它一直压在普通窗口之上。
+    /// </remarks>
+    public static bool SendToNormalBand(nint window)
+    {
+        if (window == 0) return false;
+
+        try
+        {
+            return Dpi32.SetWindowPos(
+                window,
+                HwndNoTopmost,
+                0,
+                0,
+                0,
+                0,
+                SwpNoMove | SwpNoSize | SwpNoActivate);
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return false;
+        }
+    }
 
     /// <summary>Raise an existing topmost window without changing focus, position, or size.</summary>
     public static bool BringToTopWithoutActivation(nint window)

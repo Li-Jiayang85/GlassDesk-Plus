@@ -428,6 +428,9 @@ public partial class DockWindow : GlassWindow
     /// <summary>Raise the non-activating Dock above Launcher while it is a drag target.</summary>
     public void RaiseAboveLauncherDuringDrag() => _ = WindowStyles.BringToTopWithoutActivation(Handle);
 
+    /// <summary>拖拽结束后把程序坞放回普通层：它平时不该压在普通窗口之上。</summary>
+    public void ReturnBehindNormalWindows() => _ = WindowStyles.SendToNormalBand(Handle);
+
     /// <summary>Dock 使用栏自身的圆角半径，而不是启动台的。</summary>
     protected override double ResolveCornerRadius(AppearanceSettings appearance)
     {
@@ -1409,7 +1412,9 @@ public partial class DockWindow : GlassWindow
         var now = DateTime.UtcNow;
         var cursor = DisplayService.GetCursorPixelPoint();
         var fullscreen = FullscreenDetector.IsFullscreenActive();
-        var covered = ForegroundCoverage.IsCovered(_restingRect);
+        // 用「完全被盖住」而不是「有任何相交」：桌面歌词、悬浮工具条这类小窗口压在程序坞
+        // 一角时不该把程序坞收走。程序坞本身已不置顶，普通窗口要盖就直接盖在上面即可。
+        var covered = ForegroundCoverage.IsFullyCovered(_restingRect);
         var suppressed = fullscreen || covered;
         var pointerOverDock = cursor is { } currentPoint
             && Inflate(GetVisibleDockRect(), 2).Contains(currentPoint.X, currentPoint.Y);
