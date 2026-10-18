@@ -1,4 +1,4 @@
-# Publishes a GlassDesk Plus release to GitHub.
+﻿# Publishes a GlassDesk Plus release to GitHub.
 #
 # ASCII only on purpose: Windows PowerShell 5.1 reads a .ps1 without a BOM using the system
 # ANSI code page, so non-ASCII text in this file would fail to parse on a Chinese-locale
@@ -164,19 +164,56 @@ try {
 
     # Upload with curl: schannel cannot complete the revocation check behind some proxies
     # (CRYPT_E_NO_REVOCATION_CHECK), which fails the upload outright.
+    #
+    # 上传需要 uploads.github.com。某些网络会把它解析到 127.0.0.1（DNS 拦截），
+    # 或者连上了却中途断开，留下一个 starter 残包。这里按「直连 → 公共 DNS 地址逐个
+    # --resolve」的顺序重试，并在每次重试前删掉残包，免得同名冲突。
     $curl = Join-Path $env:SystemRoot 'System32/curl.exe'
     $uploadUrl = "https://uploads.github.com/repos/$ReleaseRepository/releases/$($release.id)/assets?name=$installerName"
-    $uploadJson = & $curl -sS --ssl-no-revoke -X POST `
-        -H "Authorization: Bearer $($env:GITHUB_TOKEN)" `
-        -H 'Accept: application/vnd.github+json' `
-        -H 'Content-Type: application/octet-stream' `
-        -H 'User-Agent: glassdesk-release' `
-        --data-binary "@$installerPath" `
-        $uploadUrl
-    $asset = $uploadJson | ConvertFrom-Json
-    if ($asset.name -ne $installerName) { throw "asset upload failed: $uploadJson" }
+    $asset = $null
+    $targets = @('')
+    foreach ($server in @('223.5.5.5', '8.8.8.8')) {
+        $found = @()
+        try {
+            $found = @(Resolve-DnsName uploads.github.com -Server $server -Type A -QuickTimeout -ErrorAction Stop |
+                Where-Object IPAddress | Select-Object -ExpandProperty IPAddress -Unique)
+        } catch {
+            $found = @()
+        }
+        foreach ($address in $found) {
+            if ($address -and $address -notlike '127.*' -and $targets -notcontains $address) { $targets += $address }
+        }
+    }
+
+    foreach ($address in $targets) {
+        $extra = @()
+        if ($address) {
+            $extra = @('--resolve', "uploads.github.com:443:$address")
+            Write-Host "uploading via $address"
+        }
+        $raw = & $curl -sS @extra --ssl-no-revoke --http1.1 --connect-timeout 20 --max-time 900 `
+            -X POST -H "Authorization: Bearer $($env:GITHUB_TOKEN)" `
+            -H 'Accept: application/vnd.github+json' `
+            -H 'Content-Type: application/octet-stream' `
+            -H 'User-Agent: glassdesk-release' `
+            -H 'Expect:' `
+            --data-binary "@$installerPath" $uploadUrl 2>&1
+        try { $asset = (($raw | Out-String).Trim() | ConvertFrom-Json) } catch { $asset = $null }
+        if ($asset -and $asset.state -eq 'uploaded') { break }
+
+        # 收拾残包：starter 状态的同名资产会让下一次上传撞名失败
+        $existing = @(Invoke-RestMethod -Uri "https://api.github.com/repos/$ReleaseRepository/releases/$($release.id)/assets" -Headers $headers -TimeoutSec 30)
+        foreach ($item in $existing) {
+            if ($item.name -eq $installerName) {
+                Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/$ReleaseRepository/releases/assets/$($item.id)" -Headers $headers -TimeoutSec 30
+            }
+        }
+    }
+
+    if (-not $asset -or $asset.name -ne $installerName -or $asset.state -ne 'uploaded') {
+        throw "asset upload failed: $(($asset | ConvertTo-Json -Compress -Depth 3))"
+    }
     Write-Host "asset uploaded: $($asset.name) ($([math]::Round($asset.size / 1MB, 1)) MB, $($asset.state), $($asset.digest))"
-    Write-Host 'done.'
 }
 finally {
     Pop-Location
