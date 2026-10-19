@@ -173,6 +173,38 @@ public sealed class LaunchService : ILaunchService
             };
     }
 
+    /// <summary>
+    /// 该应用唯一的窗口如果正处在前台，就把它最小化。
+    /// </summary>
+    /// <remarks>
+    /// 对齐上游 1.3.3：在程序中坞里再次点击当前已经在前台的应用，等于「收起它」，
+    /// 而不是把同一个窗口原样再提一次（那种点击看起来没有任何反应）。
+    ///
+    /// <para>
+    /// 只处理「唯一窗口且确实在前台」这一种情况。后台窗口、多窗口、找不到窗口、
+    /// 目标已失效、以及根本不能按窗口匹配的条目，一律返回 <c>false</c>，
+    /// 由调用方继续走原来的「激活或启动」路径——不改变既有行为。
+    /// </para>
+    /// </remarks>
+    public bool TryMinimizeForeground(string itemId)
+    {
+        var entry = _library.Find(itemId);
+        if (entry is null || entry.Kind == AppItemKind.Url) return false;
+        if (IsTargetGone(entry)) return false;
+        if (string.IsNullOrWhiteSpace(WindowMatcher.ResolveAumid(entry)) && !WindowMatcher.CanMatchByImage(entry))
+        {
+            return false;
+        }
+
+        var windows = WindowMatcher.FindWindows(entry);
+        if (windows.Count != 1) return false;
+
+        var handle = windows[0].Handle;
+        if (handle == 0 || WindowControl.GetForegroundWindow() != handle) return false;
+
+        return WindowControl.Minimize(handle);
+    }
+
     /// <summary>目标现在还在不在。</summary>
     public static bool IsTargetGone(AppEntry entry)
     {

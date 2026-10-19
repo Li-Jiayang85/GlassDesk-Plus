@@ -658,6 +658,13 @@ public partial class DockWindow : GlassWindow
             return;
         }
 
+        // 再次点击已经在前台的那个应用 = 收起它（对齐上游 1.3.3）。
+        // 只有「唯一窗口且就在前台」才会命中，其余情况原样往下走激活/启动。
+        if (_services.Launch.TryMinimizeForeground(entryId))
+        {
+            return;
+        }
+
         var outcome = _services.Launch.ActivateOrLaunch(entryId);
 
         switch (outcome.Outcome)
@@ -1503,7 +1510,23 @@ public partial class DockWindow : GlassWindow
         else
         {
             _edgeRevealedDuringSuppression = false;
-            _autoHide.ForceShown(now);
+            if (!Settings.AutoHide)
+            {
+                // 常驻显示：指针离开也不收，Dock 一直在。
+                _autoHide.ForceShown(now);
+            }
+            else if (_autoHide.State == AutoHideState.Hidden)
+            {
+                // 已收起：指针回到 Dock 原位置时唤出（对齐上游 1.3.3 的边缘唤出）。
+                // 被覆盖或全屏时上面那条分支已经先处理，这里只管家用场景。
+                if (pointerOverDockPosition) _autoHide.TryReveal(false, now);
+            }
+            else
+            {
+                if (pointerOverVisibleDock) _autoHide.PointerEnter(now);
+                else _autoHide.PointerLeave(now);
+                _autoHide.Poll(now);
+            }
         }
 
         if (_autoHide.State == AutoHideState.Hidden)

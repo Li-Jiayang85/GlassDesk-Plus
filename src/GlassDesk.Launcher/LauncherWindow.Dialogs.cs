@@ -35,8 +35,151 @@ public partial class LauncherWindow
             if (ShowModalDialog(() => picker.ShowDialog(this))) ImportPaths([picker.FolderName]);
         });
         AddMenu(menu, "从文件夹批量添加快捷方式…", AddShortcutsFromFolder);
+        AddMenu(menu, "从桌面批量添加…", AddFromDesktop);
         AddMenu(menu, "网站…", AddWebsite);
         menu.IsOpen = true;
+    }
+
+    /// <summary>
+    /// 从个人桌面与公共桌面一次性多选导入（对齐上游 1.3.6 的「从桌面批量添加」）。
+    /// </summary>
+    /// <remarks>
+    /// 只扫桌面第一层，不递归；隐藏/系统项跳过。两项桌面分开列，重名时用户也分得清
+    /// 自己勾的是哪一个，每一项的提示里带完整路径。
+    /// </remarks>
+    private void AddFromDesktop()
+    {
+        var items = DesktopLaunchables();
+        if (items.Count == 0)
+        {
+            ShowNotice("桌面上没有可添加的快捷方式或程序。");
+            return;
+        }
+
+        var dialog = new GlassPromptWindow
+        {
+            Title = "从桌面批量添加",
+            Owner = this,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Width = 460,
+            Height = 440,
+            MinHeight = 280,
+            ShowInTaskbar = false,
+        };
+
+        var checks = new List<CheckBox>();
+        var list = new StackPanel();
+        string? lastGroup = null;
+        foreach (var (path, group) in items)
+        {
+            if (group != lastGroup)
+            {
+                lastGroup = group;
+                list.Children.Add(new TextBlock
+                {
+                    Text = group,
+                    Margin = new Thickness(0, checks.Count == 0 ? 0 : 12, 0, 4),
+                    FontWeight = FontWeights.SemiBold,
+                });
+            }
+
+            var check = new CheckBox
+            {
+                Content = Path.GetFileNameWithoutExtension(path),
+                ToolTip = path,
+                Tag = path,
+                Margin = new Thickness(0, 3, 0, 3),
+                IsChecked = true,
+            };
+            System.Windows.Automation.AutomationProperties.SetName(check, Path.GetFileName(path));
+            System.Windows.Automation.AutomationProperties.SetHelpText(check, path);
+            checks.Add(check);
+            list.Children.Add(check);
+        }
+
+        var scroll = new ScrollViewer
+        {
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = list,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 12, 0, 0),
+        };
+        var selectAll = new Button { Content = "全选", MinWidth = 70, Margin = new Thickness(0, 0, 8, 0) };
+        selectAll.Click += (_, _) => { foreach (var check in checks) check.IsChecked = true; };
+        var clearAll = new Button { Content = "清空", MinWidth = 70, Margin = new Thickness(0, 0, 8, 0) };
+        clearAll.Click += (_, _) => { foreach (var check in checks) check.IsChecked = false; };
+        var cancel = new Button { Content = "取消", MinWidth = 70, IsCancel = true, Margin = new Thickness(0, 0, 8, 0) };
+        var confirm = new Button { Content = "添加", MinWidth = 70, IsDefault = true };
+        confirm.Click += (_, _) => dialog.DialogResult = true;
+        actions.Children.Add(selectAll);
+        actions.Children.Add(clearAll);
+        actions.Children.Add(cancel);
+        actions.Children.Add(confirm);
+
+        var hint = new TextBlock
+        {
+            Text = $"桌面共 {items.Count} 项可添加，默认全选。只读取桌面第一层。",
+            TextWrapping = TextWrapping.Wrap,
+        };
+
+        var panel = new DockPanel { Margin = new Thickness(18) };
+        DockPanel.SetDock(hint, Dock.Top);
+        DockPanel.SetDock(actions, Dock.Bottom);
+        panel.Children.Add(hint);
+        panel.Children.Add(actions);
+        panel.Children.Add(scroll);
+
+        var surface = new Grid();
+        surface.Children.Add(new LiquidGlassSurface { UseLauncherTransparency = true });
+        surface.Children.Add(panel);
+        dialog.Content = surface;
+
+        if (dialog.ShowDialog() != true) return;
+
+        var selected = checks.Where(check => check.IsChecked == true)
+            .Select(check => (string)check.Tag!)
+            .ToArray();
+        if (selected.Length == 0)
+        {
+            ShowNotice("没有勾选任何项目。");
+            return;
+        }
+        ImportPaths(selected);
+    }
+
+    /// <summary>桌面第一层里可启动的项目：个人桌面在前，公共桌面在后。</summary>
+    private static List<(string Path, string Group)> DesktopLaunchables()
+    {
+        var result = new List<(string Path, string Group)>();
+        var sources = new (Environment.SpecialFolder Folder, string Group)[]
+        {
+            (Environment.SpecialFolder.Desktop, "个人桌面"),
+            (Environment.SpecialFolder.CommonDesktopDirectory, "公共桌面"),
+        };
+        foreach (var (folder, group) in sources)
+        {
+            string path;
+            try { path = Environment.GetFolderPath(folder); }
+            catch (Exception) { continue; }
+            if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) continue;
+
+            IEnumerable<string> files;
+            try { files = Directory.EnumerateFiles(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { continue; }
+
+            foreach (var file in files.OrderBy(Path.GetFileName, StringComparer.CurrentCultureIgnoreCase))
+            {
+                if (!LaunchableExtensions.Contains(Path.GetExtension(file)) || IsExcluded(file)) continue;
+                result.Add((file, group));
+            }
+        }
+        return result;
     }
 
     /// <summary>选择文件夹，递归扫描其中的快捷方式与可执行文件并批量导入启动台。</summary>

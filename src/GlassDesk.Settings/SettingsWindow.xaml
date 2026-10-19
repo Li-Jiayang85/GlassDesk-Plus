@@ -226,6 +226,16 @@
                          AutomationProperties.Name="Dock 外框长度当前值" />
               <Button Content="外框长度随内容自动调整" HorizontalAlignment="Left" Margin="0,2,0,4"
                       AutomationProperties.Name="Dock 外框长度自动调整" Click="OnDockAutoLengthClick" />
+              <TextBlock Margin="0,12,0,4" Text="显示方式"
+                         Foreground="{Binding ForegroundBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
+              <ComboBox x:Name="DockDisplayModeCombo" AutomationProperties.Name="Dock 显示方式"
+                        SelectionChanged="OnDockControlChanged">
+                <ComboBoxItem Content="常驻显示" />
+                <ComboBoxItem Content="自动隐藏" />
+              </ComboBox>
+              <TextBlock Margin="0,2,0,4" FontSize="11" TextWrapping="Wrap"
+                         Text="自动隐藏：鼠标移到 Dock 原位置可唤出，移开约 0.3 秒后收起；菜单、拖动图标和启动台打开期间保持显示。"
+                         Foreground="{Binding ForegroundBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
               <TextBlock Margin="0,12,0,4" Text="位置"
                          Foreground="{Binding ForegroundBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
               <ComboBox x:Name="DockPlacementCombo" AutomationProperties.Name="Dock 位置"

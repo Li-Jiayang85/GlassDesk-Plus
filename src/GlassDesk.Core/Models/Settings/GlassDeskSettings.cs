@@ -55,8 +55,9 @@ public sealed class GlassDeskSettings
         Display ??= new DisplaySettings();
         Performance ??= new PerformanceSettings();
         DesktopTaskbar ??= new DesktopTaskbarSettings();
-        Dock.AutoHide = false;
-        Dock.EdgeRevealEnabled = false;
+        // Dock 显示方式由用户在 设置 → Dock 里选择（常驻 / 自动隐藏）。
+        // 自动隐藏必须同时开启边缘唤出，否则收起来之后没有回来的入口。
+        Dock.EdgeRevealEnabled = Dock.AutoHide;
         Launcher.FullscreenMode = false;
         Shortcuts.HotCornersEnabled = false;
         Shortcuts.MouseSideButtonsEnabled = false;

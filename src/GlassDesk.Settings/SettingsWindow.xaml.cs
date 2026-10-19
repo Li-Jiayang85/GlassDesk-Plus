@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
@@ -197,6 +197,7 @@ public partial class SettingsWindow : GlassWindow
             DockScaleSlider.Value = dock.SizeScale;
             DockScaleReadout.Text = $"{dock.SizeScale:P0} · 图标 {48 * dock.SizeScale:0} DIP";
             DockPlacementCombo.SelectedIndex = (int)dock.Placement;
+            DockDisplayModeCombo.SelectedIndex = dock.AutoHide ? 1 : 0;
             var display = PrimaryDisplaySession is { IsAvailable: true } session
                 ? session.Display
                 : PrimaryDisplaySession is null ? DisplayService.Primary() : null;
@@ -367,9 +368,11 @@ public partial class SettingsWindow : GlassWindow
             Placement = (DockPlacement)DockPlacementCombo.SelectedIndex,
             OffsetX = DockOffsetXSlider.Value,
             OffsetY = DockOffsetYSlider.Value,
-            AutoHide = false,
+            // 显示方式：0 = 常驻显示，1 = 自动隐藏。自动隐藏必须同时打开边缘唤出，
+            // 否则收起来之后没有回来的入口。
+            AutoHide = DockDisplayModeCombo.SelectedIndex == 1,
             AutoHideLeaveDelayMs = previousDock.AutoHideLeaveDelayMs,
-            EdgeRevealEnabled = false,
+            EdgeRevealEnabled = DockDisplayModeCombo.SelectedIndex == 1,
             EdgeHotzoneSize = previousDock.EdgeHotzoneSize,
             BlockRevealWhenCovered = previousDock.BlockRevealWhenCovered,
             TargetDisplayId = previousDock.TargetDisplayId,
