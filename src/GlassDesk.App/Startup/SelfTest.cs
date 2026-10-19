@@ -43,15 +43,17 @@ internal static class SelfTest
 
         report.AppendLine("【系统能力】");
         report.AppendLine(CultureInfo.InvariantCulture, $"操作系统：Windows {WindowsCapabilities.OsVersion}（Build {WindowsCapabilities.BuildNumber}）");
+        report.AppendLine(CultureInfo.InvariantCulture, $"系统代际：{(WindowsCapabilities.IsWindows11OrGreater ? "Windows 11" : WindowsCapabilities.IsWindows10 ? "Windows 10（自绘面板降级）" : "不受支持")}");
         report.AppendLine(CultureInfo.InvariantCulture, $"系统背景材质：{Yes(WindowsCapabilities.SupportsSystemBackdrop)}（需 Build 22621 及以上）");
-        report.AppendLine(CultureInfo.InvariantCulture, $"窗口圆角偏好：{Yes(WindowsCapabilities.SupportsWindowCornerPreference)}（需 Build 22000 及以上）");
+        report.AppendLine(CultureInfo.InvariantCulture, $"窗口圆角偏好：{Yes(WindowsCapabilities.SupportsWindowCornerPreference)}（需 Build 22000 及以上；不支持时由自绘面板提供圆角）");
         report.AppendLine(CultureInfo.InvariantCulture, $"深色标题栏：{Yes(WindowsCapabilities.SupportsImmersiveDarkMode)}");
         report.AppendLine(CultureInfo.InvariantCulture, $"系统主题：{(SystemThemeReader.IsLightTheme() ? "浅色" : "深色")}");
         report.AppendLine(CultureInfo.InvariantCulture, $"系统透明效果：{(SystemThemeReader.IsTransparencyEnabled() ? "开启" : "关闭")}");
+        report.AppendLine(CultureInfo.InvariantCulture, $"截图排除：{Yes(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))}（需 Build 19041 及以上）");
         if (!WindowsCapabilities.IsSupported)
         {
             failures++;
-            report.AppendLine("✗ 此 Windows 版本低于支持范围（需要 Windows 11 Build 22000 及以上）");
+            report.AppendLine("✗ 此 Windows 版本低于支持范围（需要 Windows 10 版本 2004 / Build 19041 及以上）");
         }
 
         report.AppendLine();

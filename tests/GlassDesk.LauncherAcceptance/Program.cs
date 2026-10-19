@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
@@ -36,6 +36,7 @@ internal static partial class Program
         if (args.Contains("--batch-delete")) return VerifyBatchDelete(args);
         if (args.Contains("--dock-entries")) return VerifyDockEntryToggles(args);
         if (args.Contains("--widgets-default")) return VerifyWidgetsDefaultOff(args);
+        if (args.Contains("--win10-fallback")) return VerifyWin10Fallback(args);
         var report = Argument(args, "--report") ?? Path.Combine(Environment.CurrentDirectory, "phase5-wpf.json");
         var supplied = Argument(args, "--data-dir");
         var root = supplied is null ? Path.Combine(Path.GetTempPath(), "GlassDesk-P5-Wpf-" + Guid.NewGuid().ToString("n")) : Path.GetFullPath(supplied);

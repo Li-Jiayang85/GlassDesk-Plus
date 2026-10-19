@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
@@ -442,7 +442,12 @@ public partial class SettingsWindow : GlassWindow
             builder.AppendLine(culture, $"动画：{(theme.AnimationsEnabled ? "开启" : "已减少")}");
         }
 
-        builder.AppendLine(culture, $"窗口玻璃做法：{(SurfaceMode == GlassSurfaceMode.Acrylic ? "亚克力背景模糊" : "自绘半透明面板（无背景模糊）")}");
+        builder.AppendLine(culture, $"窗口玻璃做法：{SurfaceMode switch
+        {
+            GlassSurfaceMode.Acrylic => "亚克力背景模糊",
+            GlassSurfaceMode.OpticalGlass => "液态玻璃（自绘折射 + 桌面采集）",
+            _ => "自绘半透明面板（无背景模糊）",
+        }}");
 
         if (_dataStore is not null)
         {

@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using GlassDesk.App.Startup;
 using GlassDesk.Core.Storage;
 using GlassDesk.UI.Theming;
@@ -43,13 +43,21 @@ public partial class App : Application, IDisposable
     }
 
     protected override void OnStartup(StartupEventArgs e)
-    {
-        base.OnStartup(e);
+    {        base.OnStartup(e);
 
         var options = CommandLineOptions.Parse(e.Args);
+
+        // 诊断/验收专用：在 Windows 11 上按指定构建号模拟旧系统，验证降级路径。
+        // 必须放在支持性检查之前，否则模拟 Windows 10 会被自己拦下来。
+        if (options.VerificationBuild is { } verificationBuild)
+        {
+            GlassDesk.Platform.WindowsCapabilities.OverrideBuildForVerification(verificationBuild);
+        }
+
         if (!GlassDesk.Platform.WindowsCapabilities.IsSupported)
         {
-            MessageBox.Show("此测试版本需要 Windows 11（Build 22000 及以上）。", "GlassDesk", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("GlassDesk Plus 需要 Windows 10 版本 2004（Build 19041）或更高版本。",
+                "GlassDesk", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown(2); return;
         }
         System.Windows.Media.Effects.PixelShader.InvalidPixelShaderEncountered += OnBackdropShaderFailure;
@@ -205,6 +213,7 @@ public partial class App : Application, IDisposable
     }
 
     private static void OnBackdropShaderFailure(object? sender, EventArgs e) => GlassDesk.UI.BackdropRecovery.UseBasicRendering();
+
 
     protected override void OnExit(ExitEventArgs e)
     {

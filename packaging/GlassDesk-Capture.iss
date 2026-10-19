@@ -1,4 +1,4 @@
-; User-scope x64 installer for the local GlassDesk candidate.
+﻿; User-scope x64 installer for the local GlassDesk candidate.
 #ifndef AppIdValue
   #error AppIdValue is required.
 #endif
@@ -35,7 +35,9 @@ ArchitecturesInstallIn64BitMode=x64os
 UsePreviousAppDir=yes
 CloseApplications=yes
 RestartApplications=no
-MinVersion=10.0.22000
+; Windows 10 版本 2004（19041）起可用：更低的版本能启动，但 WDA_EXCLUDEFROMCAPTURE
+; （截图排除）不可用，Dock 会出现在截图里。Windows 11 上走完整外观。
+MinVersion=10.0.19041
 UninstallDisplayName=GlassDesk Plus
 UninstallDisplayIcon={app}\GlassDesk.exe
 SetupIconFile=..\src\GlassDesk.App\Assets\GlassDesk.ico

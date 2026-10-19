@@ -26,8 +26,15 @@ public static partial class WindowsCapabilities
     /// <summary>官方支持深色模式窗口特性的起始版本。</summary>
     private const int ImmersiveDarkModeBuild = 18985;
 
-    /// <summary>此发行路线最低 Windows 11 21H2。</summary>
-    private const int MinimumSupportedBuild = 22000;
+    /// <summary>
+    /// 产品最低系统门槛：Windows 10 版本 2004（Build 19041）。
+    /// </summary>
+    /// <remarks>
+    /// 选 19041 而不是更低的版本，是因为 <c>WDA_EXCLUDEFROMCAPTURE</c>
+    /// （截图排除，见 <c>CaptureExclusionSession</c>）从 2004 起才可用；
+    /// 再往下虽然程序能跑，但“Dock 不出现在截图里”会静默失效。
+    /// </remarks>
+    private const int MinimumSupportedBuild = 19041;
 
     static WindowsCapabilities()
     {
@@ -37,15 +44,40 @@ public static partial class WindowsCapabilities
     }
 
     /// <summary>运行中操作系统的真实版本，例如 10.0.26100。</summary>
-    public static Version OsVersion { get; }
+    public static Version OsVersion { get; private set; }
 
-    public static int BuildNumber { get; }
+    public static int BuildNumber { get; private set; }
+
+    /// <summary>
+    /// 把版本号替换成指定构建，用于在 Windows 11 上验证 Windows 10 的降级路径。
+    /// </summary>
+    /// <remarks>
+    /// 只给自检/验收（<c>--verify-os-build</c>）使用：不改变任何系统状态，
+    /// 只是让 <see cref="SupportsSystemBackdrop"/> 这类能力探测按旧构建回答，
+    /// 从而确认降级路径真的能跑起来。传 0 恢复真实版本。
+    /// </remarks>
+    public static void OverrideBuildForVerification(int build)
+    {
+        if (build <= 0)
+        {
+            var (major, minor, real) = ReadVersion();
+            OsVersion = new Version(major, minor, real);
+            BuildNumber = real;
+            return;
+        }
+
+        BuildNumber = build;
+        OsVersion = new Version(10, 0, build);
+    }
 
     /// <summary>产品最低系统门槛；未来 Build 不设置上限。</summary>
     public static bool IsSupported => IsProductBuildSupported(BuildNumber);
     public static bool IsProductBuildSupported(int build) => build >= MinimumSupportedBuild;
 
     public static bool IsWindows11OrGreater => BuildNumber >= Windows11Build;
+
+    /// <summary>处在 Windows 10 支持区间（2004 及以上，但还没到 Windows 11）。</summary>
+    public static bool IsWindows10 => !IsWindows11OrGreater && IsSupported;
 
     /// <summary>
     /// DWM 是否会响应背景材质请求。
@@ -65,7 +97,8 @@ public static partial class WindowsCapabilities
     public static string Describe()
     {
         var backdrop = SupportsSystemBackdrop ? "支持系统背景材质" : "不支持系统背景材质（使用自绘面板）";
-        return $"Windows {OsVersion}（Build {BuildNumber}）— {backdrop}";
+        var generation = IsWindows11OrGreater ? "Windows 11" : IsWindows10 ? "Windows 10（降级外观）" : "不受支持的版本";
+        return $"Windows {OsVersion}（Build {BuildNumber}）— {generation}，{backdrop}";
     }
 
     private static (int Major, int Minor, int Build) ReadVersion()

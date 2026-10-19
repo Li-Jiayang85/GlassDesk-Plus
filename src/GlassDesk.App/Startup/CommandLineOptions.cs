@@ -153,6 +153,9 @@ public sealed class CommandLineOptions
     /// <summary>所有没能识别的参数。之所以上报，是为了不让拼写错误被悄悄忽略。</summary>
     public IReadOnlyList<string> Unknown { get; private init; } = [];
 
+    /// <summary>诊断/验收专用：把能力探测伪装成这个构建号（如 19045 模拟 Windows 10）。</summary>
+    public int? VerificationBuild { get; private init; }
+
     /// <summary>要执行的应用库命令；不是这一类启动时为 <see cref="AppServiceVerb.None"/>。</summary>
     public AppServiceVerb Verb { get; private init; } = AppServiceVerb.None;
 
@@ -175,6 +178,7 @@ public sealed class CommandLineOptions
         var exit = false;
         string? acceptanceDataRoot = null;
         string? acceptanceReport = null;
+        int? verificationBuild = null;
         var unknown = new List<string>();
         var sample = AppearanceSample.None;
         var verb = AppServiceVerb.None;
@@ -220,6 +224,17 @@ public sealed class CommandLineOptions
                     { unknown.Add(raw); acceptanceReport = string.Empty; }
                     else if (acceptanceReport is not null) unknown.Add(raw);
                     else acceptanceReport = args[++index];
+                    break;
+
+                // 诊断/验收专用：按指定构建号模拟旧系统（如 19045），验证 Windows 10 降级路径。
+                case "--verify-os-build":
+                    if (index + 1 >= args.Count
+                        || !int.TryParse(args[index + 1], System.Globalization.NumberStyles.Integer,
+                            System.Globalization.CultureInfo.InvariantCulture, out var verifyBuild)
+                        || verifyBuild <= 0)
+                    { unknown.Add(raw); }
+                    else if (verificationBuild is not null) unknown.Add(raw);
+                    else { verificationBuild = verifyBuild; index++; }
                     break;
                 case "--selftest":
                 case "--self-test":
@@ -297,6 +312,7 @@ public sealed class CommandLineOptions
             AcceptanceDataRoot = acceptanceDataRoot,
             AcceptanceReport = acceptanceReport,
             Help = help,
+            VerificationBuild = verificationBuild,
             Unknown = unknown,
             Verb = verb,
             VerbArguments = verbArguments,
@@ -349,6 +365,8 @@ public sealed class CommandLineOptions
                              隔离诊断数据和报告（仍会创建诊断窗口，需可用测试桌面）
           --show-launcher    显示启动台（已在运行则通知现有实例）
           --show-settings    显示设置中心（已在运行则通知现有实例）
+          --verify-os-build <构建号>
+                             诊断用：按指定构建号运行（如 19045 模拟 Windows 10 的降级外观）
           --autostart        登录启动（已在运行则直接退出，不唤起界面）
           --sample-light     以浅色外观启动（用于产出样例，不写回设置）
           --sample-dark      以深色外观启动

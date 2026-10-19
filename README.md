@@ -1,8 +1,8 @@
-﻿# GlassDesk Plus
+# GlassDesk Plus
 
-Windows 11 桌面美化：一块会呼吸的毛玻璃程序坞、一个能搜索能整理的启动台、一排各自开关的小组件，以及一个统一设置中心。
+Windows 10 / Windows 11 桌面美化：一块会呼吸的毛玻璃程序坞、一个能搜索能整理的启动台、一排各自开关的小组件，以及一个统一设置中心。
 
-**下载安装包**：[Releases](https://github.com/Li-Jiayang85/GlassDesk-Plus/releases) · 只支持 Windows 11 x64（Build 22000 及以上）
+**下载安装包**：[Releases](https://github.com/Li-Jiayang85/GlassDesk-Plus/releases) · Windows 10 版本 2004（Build 19041）及以上 / Windows 11 x64
 
 > 本仓库是 [everlosttime/glassdesk](https://github.com/everlosttime/glassdesk) 的修改版（Fork），
 > 基于其 Apache-2.0 源码快照（1.3.1）。来源与许可信息见 `SOURCE-PROVENANCE.json`、`LICENSE`、`NOTICE`。
@@ -40,10 +40,11 @@ Windows 11 桌面美化：一块会呼吸的毛玻璃程序坞、一个能搜索
 
 ## 版本
 
-当前版本 **1.5.0**。每个标签是对应版本的完整源码快照，安装包见 [Releases](https://github.com/Li-Jiayang85/GlassDesk-Plus/releases)。
+当前版本 **1.6.0**。每个标签是对应版本的完整源码快照，安装包见 [Releases](https://github.com/Li-Jiayang85/GlassDesk-Plus/releases)。
 
 | 版本 | 主要变化 |
 |---|---|
+| 1.6.0 | Windows 10 适配：最低 19041，自动降级外观 |
 | 1.5.0 | Dock 常驻/自动隐藏、点击前台应用最小化、从桌面批量添加 |
 | 1.4.11 | 修发布说明被序列化成哈希表文本 |
 | 1.4.10 | Dock 改为非置顶；修遮挡误收起与桌面歌词挤没 Dock |
@@ -72,7 +73,11 @@ Windows 11 桌面美化：一块会呼吸的毛玻璃程序坞、一个能搜索
 
 ## 环境
 
-- Windows 11 x64；目标 SDK 为 Windows 10.0.26100.0，运行兼容下限 Windows 11 Build 22000
+- Windows 10 版本 2004（Build 19041）及以上 / Windows 11 x64；目标 SDK 为 Windows 10.0.26100.0
+- Windows 11 使用完整外观（系统背景材质 + DWM 圆角）；Windows 10 自动降级为自绘玻璃与自绘圆角，
+  功能一致、观感略简（无 Mica 材质）
+- .NET 10 官方支持矩阵里，Windows 10 仅限 LTSC / 企业版（21H2、1809、1607）；
+  消费版 Windows 10 22H2 可运行，但不在官方支持列表内，重要场景请优先用 Windows 11
 - .NET 10 SDK（`global.json` 固定工具链 10.0.401）
 - 高级实时玻璃使用部分非公开 DWM 接口，并按能力提供兼容回退
 
