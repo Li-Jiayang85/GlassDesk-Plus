@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>GlassDeskPlusSetup</AssemblyName>
+    <RootNamespace>GlassDeskPlusSetup</RootNamespace>
+    <Version>2.0.0</Version>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="payload\GlassDeskPatch.dll" LogicalName="GlassDeskPatch.dll" />
+    <EmbeddedResource Include="payload\wechat.jpg" LogicalName="wechat.jpg" />
+    <EmbeddedResource Include="payload\alipay.jpg" LogicalName="alipay.jpg" />
+    <EmbeddedResource Include="payload\GlassDesk-1.4.4-win-x64-Setup.exe" LogicalName="GlassDesk-1.4.4-win-x64-Setup.exe" />
+  </ItemGroup>
+</Project>

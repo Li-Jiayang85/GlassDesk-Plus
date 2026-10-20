@@ -120,3 +120,11 @@ GlassDesk 原创代码采用 Apache License 2.0，允许修改、商用及闭源
 完整条款见 `LICENSE`；第三方代码与资源保留自身许可，详见 `NOTICE` 和 `docs/third-party`。
 
 GlassDesk 不打包用户导入应用的图标，项目许可不授予第三方商标权利。
+## 增强版（基于原版 GlassDesk 1.4.4）
+
+除了本仓库的 Plus 分支，这里还提供基于**原版 1.4.4** 的增强版安装包（信息栏位置、控制中心跟随、启动台滚轮翻页、搜索残影修复、赞助码与检查更新）：
+
+- 下载：<https://github.com/Li-Jiayang85/GlassDesk-Plus/releases>
+- 源码：本仓库 `enhanced/` 目录
+- 维护与发布：喜羊羊（远程电脑技术支持）
+- 抖音：喜羊羊（远程电脑技术支持）
