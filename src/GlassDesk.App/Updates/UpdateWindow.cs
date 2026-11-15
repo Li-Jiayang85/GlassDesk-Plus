@@ -1,3 +1,4 @@
+using System.Text;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -33,7 +34,7 @@ internal sealed class UpdateWindow : Window, IDisposable
             grid.RowDefinitions.Add(new RowDefinition { Height = height });
         Add(new TextBlock { Text = $"发现新版本 {release.Version}", FontSize = 24, FontWeight = FontWeights.SemiBold }, 0);
         Add(new TextBlock { Text = "下载完成后会关闭 GlassDesk，安装更新并重新打开。", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 16) }, 1);
-        var notes = new TextBlock { Text = string.IsNullOrWhiteSpace(release.Notes) ? "此版本未提供更新说明。" : release.Notes, TextWrapping = TextWrapping.Wrap, LineHeight = 23 };
+        var notes = new TextBlock { Text = FormatNotes(release.Notes), TextWrapping = TextWrapping.Wrap, LineHeight = 23 };
         AutomationProperties.SetName(notes, "更新说明");
         Add(new ScrollViewer { Content = notes, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 0, 0, 16) }, 2);
         _status = new TextBlock { Text = canInstall ? "准备好后点击“立即更新”。" : "当前程序以便携方式运行或安装登记不匹配。请先手动安装正式安装包。", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) };
@@ -55,6 +56,28 @@ internal sealed class UpdateWindow : Window, IDisposable
         Closed += (_, _) => Dispose();
 
         void Add(UIElement child, int row) { Grid.SetRow(child, row); grid.Children.Add(child); }
+    }
+
+    /// <summary>
+    /// 发行说明是 Markdown（GitHub 上直接渲染），弹窗里只做一次轻量降噪：
+    /// 去掉标题井号、把「- 」换成圆点、去掉行内反引号，别让用户看到一堆「##」和「-」。
+    /// </summary>
+    private static string FormatNotes(string notes)
+    {
+        if (string.IsNullOrWhiteSpace(notes)) return "此版本未提供更新说明。";
+        var builder = new StringBuilder(notes.Length);
+        foreach (var raw in notes.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = raw.TrimEnd();
+            if (line.StartsWith("### ", StringComparison.Ordinal)) builder.Append('\n').Append(line[4..].Trim());
+            else if (line.StartsWith("## ", StringComparison.Ordinal)) builder.Append('\n').Append(line[3..].Trim());
+            else if (line.StartsWith("# ", StringComparison.Ordinal)) builder.Append('\n').Append(line[2..].Trim());
+            else if (line.StartsWith("- ", StringComparison.Ordinal)) builder.Append("• ").Append(line[2..]);
+            else builder.Append(line);
+            builder.Append('\n');
+        }
+
+        return builder.ToString().Replace("`", string.Empty).TrimEnd();
     }
 
     public void Dispose()
