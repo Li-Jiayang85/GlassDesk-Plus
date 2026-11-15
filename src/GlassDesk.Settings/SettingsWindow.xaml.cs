@@ -1,0 +1,628 @@
+using System.Globalization;
+using System.Text;
+using System.Windows;
+using System.Windows.Input;
+using GlassDesk.Core.Models.Settings;
+using GlassDesk.Core.Storage;
+using GlassDesk.Platform;
+using GlassDesk.Platform.Displays;
+using GlassDesk.Platform.Startup;
+using GlassDesk.UI.Controls;
+using GlassDesk.UI.Settings;
+using GlassDesk.UI.Theming;
+
+namespace GlassDesk.Settings;
+
+/// <summary>
+/// 设置中心。
+/// </summary>
+/// <remarks>
+/// 阶段 1 展示页面结构与实时环境报告。这份报告不是
+/// 装饰：在具体某台机器上，它是确认解析出哪个主题、
+/// 系统材质是否被接受、数据写在哪里最快的方式——而这些
+/// 阶段 2 都必须记录。
+/// </remarks>
+public partial class SettingsWindow : GlassWindow
+{
+    protected override bool UseOpaquePanel => true;
+
+    public static readonly DependencyProperty PlannedPagesProperty = DependencyProperty.Register(
+        nameof(PlannedPages),
+        typeof(IReadOnlyList<string>),
+        typeof(SettingsWindow),
+        new PropertyMetadata(Array.Empty<string>()));
+
+    private GlassDeskDataStore? _dataStore;
+    private StartupRegistration? _startupRegistration;
+    private string _startupExecutablePath = string.Empty;
+    private bool _loadingStartupRegistration;
+    private bool _loadingDockControls;
+    private bool _loadingLauncherControls;
+    private bool _loadingAppearanceControls;
+    private bool _appearanceDragActive;
+    private bool _appearanceDragDirty;
+    private GlassDeskSettings? _appearanceDragSnapshot;
+    private object? _appearanceDragSlider;
+    private System.Windows.Threading.DispatcherOperation? _appearanceDragUpdate;
+    private bool _dockValuesOutOfRange;
+    private bool _launcherValuesOutOfRange;
+    private readonly FrameworkElement[] _sectionHeadings;
+    private bool _syncingCategoryFromScroll;
+    private bool _sectionNavigationPending;
+    private int _sectionNavigationVersion;
+
+    public event EventHandler<LauncherSettings>? LauncherSettingsChanged;
+
+    public SettingsWindow()
+    {
+        _loadingAppearanceControls = true;
+        try
+        {
+            InitializeComponent();
+            AutostartCheck.IsEnabled = false;
+            Title = "GlassDesk - Capture Acceptance 20261007";
+        }
+        finally
+        {
+            _loadingAppearanceControls = false;
+        }
+
+        _sectionHeadings = [AppearanceSectionHeading, DockSectionHeading, InformationBarSectionHeading, LauncherSectionHeading,
+            ShortcutsSectionHeading, PerformanceSectionHeading, NaiwaSectionHeading, NearbySectionHeading, BackupSectionHeading,
+            SponsorshipSectionHeading, AboutSectionHeading];
+        PlannedPages =
+        [
+            "外观",
+            "Dock",
+            "信息栏",
+            "启动台",
+            "快捷操作",
+            "性能",
+            "回收站",
+            "附近传输",
+            "备份恢复",
+            "赞助支持",
+            "关于",
+        ];
+        ResetPageButton.IsEnabled = false;
+        LoadSponsorshipCodes();
+        InitializeStatusBarSecondaryControls();
+        HookAppearanceSliderDrag();
+        ShowProductVersion(DefaultProductVersion);
+    }
+
+    private void OnSettingsWindowLoaded(object sender, RoutedEventArgs e) => SyncCategoryFromScroll();
+
+    private bool CanResetSelectedPage => SettingsPageList.SelectedItem is string page
+        && page is "外观" or "Dock" or "启动台" or "快捷操作" or "性能" or "回收站" or "附近传输";
+
+    private void UpdateResetPageButton() => ResetPageButton.IsEnabled = SettingsPageList.IsEnabled
+        && _dataStore is not null && CanResetSelectedPage;
+
+    /// <summary>计划书为设置中心固定的页面名称。</summary>
+    public IReadOnlyList<string> PlannedPages
+    {
+        get => (IReadOnlyList<string>)GetValue(PlannedPagesProperty);
+        private set => SetValue(PlannedPagesProperty, value);
+    }
+
+    /// <summary>设置中心沿用启动台的圆角半径，与其面板尺寸保持一致。</summary>
+    protected override double ResolveCornerRadius(AppearanceSettings appearance)
+    {
+        ArgumentNullException.ThrowIfNull(appearance);
+        return Math.Max(80, appearance.LauncherCornerRadius);
+    }
+
+    /// <summary>把数据存储交给窗口，让它能报告数据存放的位置。</summary>
+    public void AttachDataStore(GlassDeskDataStore dataStore, DataLoadReport? loadReport)
+    {
+        ArgumentNullException.ThrowIfNull(dataStore);
+        _dataStore = dataStore;
+        LoadDockControls();
+        LoadLauncherControls();
+        LoadAppearanceControls();
+        LoadInteractionControls();
+        LoadPerformanceControls();
+        LoadNaiwaControls();
+        LoadNearbyControls();
+        RefreshDiagnostics(loadReport);
+    }
+
+    /// <summary>连接真实当前用户登录项；界面只显示当前进程路径对应的注册状态。</summary>
+    public void AttachStartupRegistration(StartupRegistration registration, string executablePath)
+    {
+        ArgumentNullException.ThrowIfNull(registration);
+        ArgumentNullException.ThrowIfNull(executablePath);
+
+        _startupRegistration = registration;
+        _startupExecutablePath = executablePath;
+        AutostartExecutableText.Text = "当前程序：" + executablePath;
+        RefreshStartupRegistration();
+    }
+
+    /// <summary>重新读取注册表，不使用设置文件中的缓存值。</summary>
+    public void RefreshStartupRegistration()
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(RefreshStartupRegistration);
+            return;
+        }
+
+        _loadingStartupRegistration = true;
+        try
+        {
+            if (_startupRegistration is null)
+            {
+                AutostartCheck.IsChecked = false;
+                AutostartCheck.IsEnabled = false;
+                AutostartStatus.Text = "当前程序的启动注册状态尚不可用。";
+                return;
+            }
+
+            var status = _startupRegistration.Query(_startupExecutablePath);
+            var canAdopt = status.State == StartupRegistrationState.OtherTarget
+                && _startupRegistration.CanUseCurrentInstallation(_startupExecutablePath);
+            AutostartCheck.IsChecked = status.State == StartupRegistrationState.Owned;
+            AutostartCheck.IsEnabled = canAdopt || status.State is StartupRegistrationState.Missing or StartupRegistrationState.Owned;
+            AutostartStatus.Text = status.State switch
+            {
+                StartupRegistrationState.Missing => "未启用；可通过此开关开启。首次运行默认启用，手动关闭后会保持关闭。",
+                StartupRegistrationState.Owned => "已启用开机自启动，进入当前用户桌面后运行；可通过此开关关闭。",
+                StartupRegistrationState.OtherTarget when canAdopt => "开机自启动当前指向另一处 GlassDesk；勾选后将改为当前程序。",
+                StartupRegistrationState.OtherTarget => "同名启动项无法确认为 GlassDesk；未修改它。",
+                _ => "无法读取或校验开机自启动项：" + (status.Error ?? "原因未知。"),
+            };
+        }
+        finally
+        {
+            _loadingStartupRegistration = false;
+        }
+    }
+
+    public void PositionOnPrimary() => CenterOnPrimaryWorkArea();
+
+    public void ShowStartupRegistrationFailure(string message)
+        => AutostartStatus.Text = "未能启用开机自启动：" + message + Environment.NewLine + AutostartStatus.Text;
+
+    private void OnAutostartClick(object sender, RoutedEventArgs e)
+    {
+        if (_loadingStartupRegistration || _startupRegistration is null) return;
+
+        var enabled = AutostartCheck.IsChecked == true;
+        var result = enabled
+            ? _startupRegistration.SetEnabledForCurrentInstallation(_startupExecutablePath)
+            : _startupRegistration.SetEnabled(_startupExecutablePath, false);
+        RefreshStartupRegistration();
+        if (!result.Succeeded)
+        {
+            AutostartStatus.Text = "未能更改开机自启动项：" + (result.Error ?? "未知错误。")
+                + Environment.NewLine + "当前实际状态：" + AutostartStatus.Text;
+        }
+    }
+
+    private void LoadDockControls()
+    {
+        if (_dataStore is null) return;
+        _loadingDockControls = true;
+        try
+        {
+            var current = _dataStore.Settings.Current;
+            var dock = current.Dock;
+            DockDisplayModeCombo.SelectedIndex = dock.AutoHide ? 1 : 0;
+            ShowLauncherEntryCheckBox.IsChecked = dock.ShowLauncherEntry;
+            ShowStatusBarCheckBox.IsChecked = dock.ShowStatusBar;
+            ShowStatusBarNetworkSpeedCheckBox.IsChecked = dock.ShowStatusBarNetworkSpeed;
+            LoadStatusBarSecondaryControls();
+            ShowThisPcEntryCheckBox.IsChecked = dock.ShowThisPcEntry;
+            ShowDesktopIconsEntryCheckBox.IsChecked = dock.ShowDesktopIconsEntry;
+            var position = dock.EffectivePosition();
+            var statusBarPosition = dock.EffectiveStatusBarPosition();
+            DockOrientationCombo.SelectedIndex = (int)dock.EffectiveOrientation();
+            DockHorizontalRatioSlider.Value = position.HorizontalRatio;
+            DockVerticalRatioSlider.Value = position.VerticalRatio;
+            DockHorizontalRatioReadout.Text = DescribeRatio(position.HorizontalRatio, "贴左", "居中", "贴右");
+            DockVerticalRatioReadout.Text = DescribeRatio(position.VerticalRatio, "贴上", "居中", "贴下");
+            StatusBarHorizontalRatioSlider.Value = statusBarPosition.HorizontalRatio;
+            StatusBarVerticalRatioSlider.Value = statusBarPosition.VerticalRatio;
+            StatusBarHorizontalRatioReadout.Text = DescribeRatio(statusBarPosition.HorizontalRatio, "贴左", "居中", "贴右");
+            StatusBarVerticalRatioReadout.Text = DescribeRatio(statusBarPosition.VerticalRatio, "贴上", "居中", "贴下");
+            StatusBarEdgeCombo.SelectedIndex = statusBarPosition.VerticalRatio < 0.5 ? 0 : 1;
+            StatusBarScaleSlider.Value = dock.StatusBarSizeScale;
+            StatusBarScaleReadout.Text = $"{dock.StatusBarSizeScale:P0} · {380 * dock.StatusBarSizeScale:0} × {54 * dock.StatusBarSizeScale:0} DIP";
+            DockScaleSlider.Value = dock.SizeScale;
+            DockScaleReadout.Text = $"{dock.SizeScale:P0} · 图标 {48 * dock.SizeScale:0} DIP";
+            DockPlacementCombo.SelectedIndex = (int)dock.Placement;
+            var display = PrimaryDisplaySession is { IsAvailable: true } session
+                ? session.Display
+                : PrimaryDisplaySession is null ? DisplayService.Primary() : null;
+            var availableWidthDip = display is null
+                ? DockSettings.MaximumFrameLengthDip
+                : display.ToDips((int)display.WorkArea.Width) - 32;
+            StatusBarOffsetXSlider.Value = Coerce(statusBarPosition.OffsetXDip, -10000, 10000);
+            StatusBarOffsetYSlider.Value = Coerce(statusBarPosition.OffsetYDip, -10000, 10000);
+            StatusBarOffsetXReadout.Text = $"{statusBarPosition.OffsetXDip:0} DIP";
+            StatusBarOffsetYReadout.Text = $"{statusBarPosition.OffsetYDip:0} DIP";
+            var maximum = Math.Min(DockSettings.MaximumFrameLengthDip, Math.Max(64, (dock.Placement is DockPlacement.LeftCenter or DockPlacement.RightCenter) && display is not null
+                ? display.ToDips((int)display.WorkArea.Height) - 32 : availableWidthDip));
+            var entryCount = (dock.ShowLauncherEntry ? 1 : 0) + (dock.ShowThisPcEntry ? 1 : 0)
+                + (dock.ShowDesktopIconsEntry ? 1 : 0);
+            var minimum = Math.Min(Math.Max(DockSettings.MinimumFrameLengthDip,
+                22 + (DockSettings.FixedIconSize + DockSettings.FixedIconSpacing) * entryCount) * dock.SizeScale, maximum);
+            if (display is not null) minimum = Math.Min(maximum, display.ToDips((int)Math.Ceiling(minimum * display.ScaleFactor)));
+            DockFrameLengthSlider.Minimum = minimum;
+            DockFrameLengthSlider.Maximum = maximum;
+            var frameLengthValid = dock.FrameLengthDip == 0
+                || Within(dock.FrameLengthDip, 64, DockSettings.MaximumFrameLengthDip);
+            DockFrameLengthSlider.Value = dock.FrameLengthDip > 0
+                ? Math.Clamp(dock.FrameLengthDip, minimum, maximum)
+                : minimum;
+            DockFrameLengthReadout.Text = dock.FrameLengthDip > 0
+                ? $"固定外框：{DockFrameLengthSlider.Value:0} DIP"
+                : "当前随图标内容自动调整；拖动滑块后固定外框长度。";
+            _dockValuesOutOfRange = !Enum.IsDefined(dock.Placement)
+                || !Enum.IsDefined(dock.StatusBarEdge)
+                || !RatioInRange(position.HorizontalRatio) || !RatioInRange(position.VerticalRatio)
+                || !RatioInRange(statusBarPosition.HorizontalRatio) || !RatioInRange(statusBarPosition.VerticalRatio)
+                || !Within(position.OffsetXDip, -SurfacePosition.MaximumOffsetDip, SurfacePosition.MaximumOffsetDip)
+                || !Within(position.OffsetYDip, -SurfacePosition.MaximumOffsetDip, SurfacePosition.MaximumOffsetDip)
+                || !Within(statusBarPosition.OffsetXDip, -10000, 10000)
+                || !Within(statusBarPosition.OffsetYDip, -10000, 10000)
+                || !frameLengthValid;
+            DockSettingsStatus.Text = _dockValuesOutOfRange
+                ? "配置文件中有超出支持范围的数值，已显示为最近的可用值；请先恢复当前页默认，避免覆盖原数据。"
+                : "整体大小调整图标与栏高度；外框长度可独立调整。修改后立即保存并应用。";
+        }
+        finally { _loadingDockControls = false; }
+    }
+
+    /// <summary>预设下拉正在写入滑块，避免递归触发保存。</summary>
+    private bool _applyingDockPreset;
+
+    /// <summary>把停靠预设翻译成比例写进滑块；偏移量保持不变，只换落点。</summary>
+    private void ApplyDockPlacementPreset(int index)
+    {
+        if (index < 0 || index > (int)DockPlacement.RightCenter) return;
+        var placement = (DockPlacement)index;
+        var preset = SurfacePosition.ForDockPlacement(placement);
+        _applyingDockPreset = true;
+        try
+        {
+            DockHorizontalRatioSlider.Value = preset.HorizontalRatio;
+            DockVerticalRatioSlider.Value = preset.VerticalRatio;
+            DockOrientationCombo.SelectedIndex = (int)SurfacePosition.OrientationFor(placement);
+        }
+        finally { _applyingDockPreset = false; }
+    }
+
+    /// <summary>把上下边缘预设翻译成垂直比例；垂直偏移随之归零，避免预设落点被旧偏移推歪。</summary>
+    private void ApplyStatusBarEdgePreset(int index)
+    {
+        if (index is < 0 or > (int)StatusBarEdge.Bottom) return;
+        _applyingDockPreset = true;
+        try
+        {
+            StatusBarVerticalRatioSlider.Value = index == (int)StatusBarEdge.Bottom ? 1 : 0;
+            StatusBarOffsetYSlider.Value = 0;
+        }
+        finally { _applyingDockPreset = false; }
+    }
+
+    private static bool RatioInRange(double value) => double.IsFinite(value)
+        && value >= SurfacePosition.MinimumRatio && value <= SurfacePosition.MaximumRatio;
+
+    /// <summary>比例的文字说明：接近 0/1 时标出贴边，其余视为自由位置。</summary>
+    private static string DescribeRatio(double ratio, string low, string middle, string high)
+    {
+        var label = ratio <= 0.001 ? low : ratio >= 0.999 ? high : middle;
+        return $"{ratio:P0} · {label}";
+    }
+
+    private static bool Within(double value, double minimum, double maximum) => double.IsFinite(value) && value >= minimum && value <= maximum;
+    private static double Coerce(double value, double minimum, double maximum) => double.IsFinite(value) ? Math.Clamp(value, minimum, maximum) : minimum;
+
+    private void LoadLauncherControls()
+    {
+        if (_dataStore is null) return;
+        _loadingLauncherControls = true;
+        try
+        {
+            var settings = _dataStore.Settings.Current.Launcher;
+            _launcherValuesOutOfRange = settings.Rows is < 2 or > 10 || settings.Columns is < 2 or > 12;
+            LauncherRowsSlider.Value = Math.Clamp(settings.Rows, 2, 10);
+            LauncherColumnsSlider.Value = Math.Clamp(settings.Columns, 2, 12);
+            LauncherFocusSearchCheck.IsChecked = settings.FocusSearchOnOpen;
+            LauncherRememberPageCheck.IsChecked = settings.RememberLastPage;
+            LauncherHighRefreshCheck.IsChecked = settings.HighRefreshAnimationsEnabled;
+            LauncherModeCombo.SelectedIndex = settings.GroupModeEnabled ? 1 : 0;
+            LauncherSettingsStatus.Text = _launcherValuesOutOfRange
+                ? "配置文件中的网格数值超出支持范围，已显示为最近的可用值；请先恢复当前页默认，避免覆盖原数据。"
+                : "修改后立即保存并应用到启动台。";
+        }
+        finally { _loadingLauncherControls = false; }
+    }
+
+    private void OnLauncherControlChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loadingLauncherControls || _dataStore is null) return;
+        if (_launcherValuesOutOfRange) { LoadLauncherControls(); return; }
+        var current = _dataStore.Settings.Current;
+        var old = current.Launcher;
+        var next = new LauncherSettings
+        {
+            Rows = (int)LauncherRowsSlider.Value,
+            Columns = (int)LauncherColumnsSlider.Value,
+            WindowWorkAreaRatio = old.WindowWorkAreaRatio,
+            FullscreenMode = false,
+            FocusSearchOnOpen = LauncherFocusSearchCheck.IsChecked == true,
+            RememberLastPage = LauncherRememberPageCheck.IsChecked == true,
+            HighRefreshAnimationsEnabled = LauncherHighRefreshCheck.IsChecked == true,
+            GroupModeEnabled = LauncherModeCombo.SelectedIndex == 1,
+        };
+        var candidate = SettingsPageEditor.Clone(current);
+        candidate.Launcher = next;
+        var validationError = SettingsPageEditor.Validate(candidate);
+        if (validationError is not null)
+        {
+            LoadLauncherControls();
+            LauncherSettingsStatus.Text = "设置无效，未保存：" + validationError;
+            return;
+        }
+        if (old.Rows == next.Rows && old.Columns == next.Columns && old.FullscreenMode == next.FullscreenMode
+            && old.FocusSearchOnOpen == next.FocusSearchOnOpen && old.RememberLastPage == next.RememberLastPage
+            && old.HighRefreshAnimationsEnabled == next.HighRefreshAnimationsEnabled
+            && old.GroupModeEnabled == next.GroupModeEnabled) return;
+        try
+        {
+            current.Launcher = next;
+            _dataStore.Settings.Save();
+            LauncherSettingsChanged?.Invoke(this, next);
+            LauncherSettingsStatus.Text = $"已保存：{next.Rows} 行 × {next.Columns} 列。";
+        }
+        catch (Exception ex)
+        {
+            current.Launcher = old;
+            LoadLauncherControls();
+            LauncherSettingsStatus.Text = "保存失败，已恢复原设置：" + ex.Message;
+        }
+    }
+
+    private void OnSettingsPageSelected(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        UpdateResetPageButton();
+        if (SettingsPageList.SelectedIndex < 0) return;
+        SettingsPageList.ScrollIntoView(SettingsPageList.SelectedItem);
+        if (!_syncingCategoryFromScroll)
+            ScrollToSection(_sectionHeadings[SettingsPageList.SelectedIndex]);
+    }
+
+    private void OnSettingsScrollChanged(object sender, System.Windows.Controls.ScrollChangedEventArgs e)
+    {
+        if (!IsLoaded || _sectionNavigationPending || !ReferenceEquals(e.OriginalSource, SettingsScroll)) return;
+        if (e.VerticalChange != 0 || e.ExtentHeightChange != 0 || e.ViewportHeightChange != 0)
+            SyncCategoryFromScroll();
+    }
+
+    private void SyncCategoryFromScroll()
+    {
+        var index = 0;
+        for (var i = 1; i < _sectionHeadings.Length; i++)
+        {
+            if (_sectionHeadings[i].TranslatePoint(new Point(), SettingsScroll).Y > 13) break;
+            index = i;
+        }
+        if (SettingsScroll.ScrollableHeight > 0
+            && SettingsScroll.VerticalOffset >= SettingsScroll.ScrollableHeight - .5)
+            index = _sectionHeadings.Length - 1;
+        _syncingCategoryFromScroll = true;
+        try { SettingsPageList.SelectedIndex = index; }
+        finally { _syncingCategoryFromScroll = false; }
+        UpdateResetPageButton();
+    }
+
+    private void ScrollToSection(FrameworkElement heading)
+    {
+        var version = ++_sectionNavigationVersion;
+        _sectionNavigationPending = true;
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (version != _sectionNavigationVersion) return;
+            var relative = heading.TranslatePoint(new Point(0, 0), SettingsScroll);
+            SettingsScroll.ScrollToVerticalOffset(SettingsScroll.VerticalOffset + relative.Y - 12);
+            // ScrollViewer processes the queued offset during layout. Keep that event from
+            // changing an explicitly selected category when its heading is near the bottom.
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (version == _sectionNavigationVersion) _sectionNavigationPending = false;
+            }, System.Windows.Threading.DispatcherPriority.Background);
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void OnDockControlChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loadingDockControls || _applyingDockPreset || _dataStore is null || DockPlacementCombo.SelectedIndex < 0
+            || StatusBarEdgeCombo.SelectedIndex < 0 || DockOrientationCombo.SelectedIndex < 0
+            || DockDisplayModeCombo.SelectedIndex < 0) return;
+        if (_dockValuesOutOfRange) { LoadDockControls(); return; }
+
+        // 预设下拉只负责把比例写进滑块；真正的几何一律从比例读，避免两套坐标打架。
+        if (ReferenceEquals(sender, DockPlacementCombo)) ApplyDockPlacementPreset(DockPlacementCombo.SelectedIndex);
+        if (ReferenceEquals(sender, StatusBarEdgeCombo)) ApplyStatusBarEdgePreset(StatusBarEdgeCombo.SelectedIndex);
+
+        var status = ReferenceEquals(sender, ShowStatusBarCheckBox) || ReferenceEquals(sender, StatusBarEdgeCombo)
+            || ReferenceEquals(sender, ShowStatusBarNetworkSpeedCheckBox)
+            || ReferenceEquals(sender, StatusBarScaleSlider) || ReferenceEquals(sender, StatusBarOffsetXSlider)
+            || ReferenceEquals(sender, StatusBarOffsetYSlider)
+            || ReferenceEquals(sender, StatusBarHorizontalRatioSlider)
+            || ReferenceEquals(sender, StatusBarVerticalRatioSlider)
+            ? InformationBarSettingsStatus : DockSettingsStatus;
+
+        // Dock 只按比例落位，没有 DIP 微调；偏移字段固定为 0，旧配置里的偏移会被丢弃。
+        var dockPosition = new SurfacePosition
+        {
+            HorizontalRatio = DockHorizontalRatioSlider.Value,
+            VerticalRatio = DockVerticalRatioSlider.Value,
+        };
+        var statusBarPosition = new SurfacePosition
+        {
+            HorizontalRatio = StatusBarHorizontalRatioSlider.Value,
+            VerticalRatio = StatusBarVerticalRatioSlider.Value,
+            OffsetXDip = StatusBarOffsetXSlider.Value,
+            OffsetYDip = StatusBarOffsetYSlider.Value,
+        };
+        DockHorizontalRatioReadout.Text = DescribeRatio(dockPosition.HorizontalRatio, "贴左", "居中", "贴右");
+        DockVerticalRatioReadout.Text = DescribeRatio(dockPosition.VerticalRatio, "贴上", "居中", "贴下");
+        StatusBarHorizontalRatioReadout.Text = DescribeRatio(statusBarPosition.HorizontalRatio, "贴左", "居中", "贴右");
+        StatusBarVerticalRatioReadout.Text = DescribeRatio(statusBarPosition.VerticalRatio, "贴上", "居中", "贴下");
+        StatusBarOffsetXReadout.Text = $"{statusBarPosition.OffsetXDip:0} DIP";
+        StatusBarOffsetYReadout.Text = $"{statusBarPosition.OffsetYDip:0} DIP";
+
+        var current = _dataStore.Settings.Current;
+        var previousDock = current.Dock;
+        var previousCorner = current.Appearance.DockCornerRadius;
+        var next = new DockSettings
+        {
+            SizeScale = DockScaleSlider.Value,
+            ShowLauncherEntry = ShowLauncherEntryCheckBox.IsChecked == true,
+            ShowStatusBar = ShowStatusBarCheckBox.IsChecked == true,
+            ShowStatusBarNetworkSpeed = ShowStatusBarNetworkSpeedCheckBox.IsChecked == true,
+            StatusBarSecondaryItems = StatusBarSecondaryItemCatalog.Normalize(previousDock.StatusBarSecondaryItems),
+            StatusBarMouseDeviceKey = previousDock.StatusBarMouseDeviceKey,
+            StatusBarHeadsetDeviceKey = previousDock.StatusBarHeadsetDeviceKey,
+            StatusBarKeyboardDeviceKey = previousDock.StatusBarKeyboardDeviceKey,
+            ShowThisPcEntry = ShowThisPcEntryCheckBox.IsChecked == true,
+            ShowDesktopIconsEntry = ShowDesktopIconsEntryCheckBox.IsChecked == true,
+            LauncherCustomIconPath = previousDock.LauncherCustomIconPath,
+            ThisPcCustomIconPath = previousDock.ThisPcCustomIconPath,
+            DesktopIconsCustomIconPath = previousDock.DesktopIconsCustomIconPath,
+            ShowNearbyEntry = previousDock.ShowNearbyEntry,
+            NearbyCustomIconPath = previousDock.NearbyCustomIconPath,
+            IconSize = DockSettings.FixedIconSize,
+            IconSpacing = DockSettings.FixedIconSpacing,
+            MagnificationPeak = DockSettings.FixedMagnificationPeak,
+            FrameLengthDip = ReferenceEquals(sender, DockFrameLengthSlider)
+                ? DockFrameLengthSlider.Value
+                : previousDock.FrameLengthDip,
+            Placement = (DockPlacement)DockPlacementCombo.SelectedIndex,
+            Position = dockPosition,
+            Orientation = (DockOrientation)DockOrientationCombo.SelectedIndex,
+            OffsetX = dockPosition.OffsetXDip,
+            OffsetY = dockPosition.OffsetYDip,
+            StatusBarEdge = (StatusBarEdge)StatusBarEdgeCombo.SelectedIndex,
+            StatusBarSizeScale = StatusBarScaleSlider.Value,
+            StatusBarPosition = statusBarPosition,
+            StatusBarOffsetX = statusBarPosition.OffsetXDip,
+            StatusBarOffsetY = statusBarPosition.OffsetYDip,
+            AutoHide = DockDisplayModeCombo.SelectedIndex == 1,
+            AutoHideLeaveDelayMs = previousDock.AutoHideLeaveDelayMs,
+            EdgeRevealEnabled = false,
+            EdgeHotzoneSize = previousDock.EdgeHotzoneSize,
+            BlockRevealWhenCovered = previousDock.BlockRevealWhenCovered,
+            TargetDisplayId = previousDock.TargetDisplayId,
+            ShowRunningIndicator = previousDock.ShowRunningIndicator,
+        };
+
+        var candidate = SettingsPageEditor.Clone(current);
+        candidate.Dock = next;
+        candidate.Appearance.DockCornerRadius = 40;
+        var validationError = SettingsPageEditor.Validate(candidate);
+        if (validationError is not null)
+        {
+            LoadDockControls();
+            status.Text = "设置无效，未保存：" + validationError;
+            return;
+        }
+
+        try
+        {
+            current.Dock = next;
+            current.Appearance.DockCornerRadius = 40;
+            _dataStore.Settings.Save();
+            DockSettingsHost.Current?.Update(next);
+            if (Math.Abs(previousCorner - current.Appearance.DockCornerRadius) > 0.001)
+                ThemeService.Current?.Update(current.Appearance);
+            DockFrameLengthReadout.Text = next.FrameLengthDip > 0
+                ? $"固定外框：{DockFrameLengthSlider.Value:0} DIP"
+                : "当前随图标内容自动调整；拖动滑块后固定外框长度。";
+            LoadDockControls();
+            status.Text = $"已保存；Dock {next.SizeScale:P0}，信息栏 {next.StatusBarSizeScale:P0}。";
+        }
+        catch (Exception ex)
+        {
+            current.Dock = previousDock;
+            current.Appearance.DockCornerRadius = previousCorner;
+            LoadDockControls();
+            status.Text = "保存失败，已恢复原设置：" + ex.Message;
+        }
+    }
+
+    private void OnDockAutoLengthClick(object sender, RoutedEventArgs e)
+    {
+        if (_dataStore is null || _dockValuesOutOfRange) return;
+        var snapshot = SettingsPageEditor.Clone(_dataStore.Settings.Current);
+        _dataStore.Settings.Current.Dock.FrameLengthDip = 0;
+        SavePageSnapshot(snapshot, "Dock", DockSettingsStatus);
+    }
+
+    /// <summary>重建环境报告。</summary>
+    public void RefreshDiagnostics(DataLoadReport? loadReport = null)
+    {
+        var theme = ThemeService.Current;
+
+        // 全程使用固定区域性：这是一份含版本号、
+        // 计数与路径的诊断转储，无论用户处于哪种区域设置下读起来都应一致。
+        var culture = CultureInfo.InvariantCulture;
+        var builder = new StringBuilder();
+
+        builder.AppendLine(culture, $"Windows：{WindowsCapabilities.OsVersion}（Build {WindowsCapabilities.BuildNumber}）");
+        builder.AppendLine(culture, $"系统背景材质：{(WindowsCapabilities.SupportsSystemBackdrop ? "受支持（Build 22621 及以上）" : "不支持，使用自绘面板")}");
+        builder.AppendLine(culture, $"窗口圆角：{(WindowsCapabilities.SupportsWindowCornerPreference ? "由 DWM 提供" : "不受支持，使用自绘圆角")}");
+
+        if (theme is not null)
+        {
+            builder.AppendLine(culture, $"主题：{theme.Appearance.Theme}（当前 {(theme.IsDark ? "深色" : "浅色")}）");
+            builder.AppendLine(culture, $"全局透明效果：{(theme.UseOpaquePanels ? "已关闭" : "已开启")}");
+            builder.AppendLine(culture, $"动画：{(theme.AnimationsEnabled ? "开启" : "已减少")}");
+        }
+
+        builder.AppendLine("设置窗口：深色不透明（无背景模糊）");
+
+        if (_dataStore is not null)
+        {
+            builder.AppendLine(culture, $"数据目录：{_dataStore.Paths.RootDirectory}");
+            builder.AppendLine(culture, $"应用库条目：{_dataStore.Library.Items.Count}");
+
+            if (loadReport?.HasNotices == true)
+            {
+                builder.AppendLine();
+                builder.AppendLine("数据加载提示：");
+                foreach (var notice in loadReport.Notices)
+                {
+                    builder.AppendLine(culture, $"· {notice}");
+                }
+            }
+        }
+
+        DiagnosticsText.Text = builder.ToString().TrimEnd();
+    }
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        RefreshDiagnostics();
+        RefreshStartupRegistration();
+    }
+
+    private void OnDragArea(object sender, MouseButtonEventArgs e)
+    {
+        // 标题和四周留白共用拖动区，正文控件保留各自的鼠标操作。
+        if (e.ChangedButton == MouseButton.Left && Mouse.LeftButton == MouseButtonState.Pressed)
+        {
+            e.Handled = true;
+            DragMove();
+        }
+    }
+
+    private void OnCloseClick(object sender, RoutedEventArgs e) => Close();
+}

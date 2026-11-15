@@ -1,0 +1,35 @@
+{
+  "product": "GlassDesk",
+  "version": "1.6.0",
+  "variant": "full-product-source",
+  "originalCommit": "3a6310832c8fba2322ef51c59dae175b4dc5faff",
+  "originalRepository": "https://github.com/everlosttime/glassdesk",
+  "exportMethod": "Complete product source directories exported without functionality changes; public documentation and licensing provenance maintained separately.",
+  "sourceDirectories": [
+    "src/",
+    "native/",
+    "contrib/",
+    "components-src/",
+    "third_party/",
+    "tests/",
+    "tools/",
+    "packaging/",
+    "build/",
+    "docs/third-party/"
+  ],
+  "originalProductSourceModified": false,
+  "adaptedFiles": [
+    "tests/GlassDesk.UiAcceptance/GlassDesk.UiAcceptance.csproj",
+    "tests/GlassDesk.DesktopAcceptance/GlassDesk.DesktopAcceptance.csproj"
+  ],
+  "excludedProductSourceFiles": [],
+  "privateDevelopmentHistoryIncluded": false,
+  "previousPublicBaseline": "7fcda32c24a39730a0a94a23e7c4109c70adb28c",
+  "license": "Scoped: PolyForm-Noncommercial-1.0.0 for eligible original additions/modifications; existing Apache-2.0 and third-party grants retained",
+  "licenseScopeDocument": "docs/LICENSING.md",
+  "exportedFileManifest": "docs/licensing/FILE-LICENSES.json",
+  "releasePublished": true,
+  "adaptationReason": "Only two historical acceptance project TargetFramework values aligned to the existing Windows product SDK target. Product implementation unchanged.",
+  "sourceRelease": "https://github.com/everlosttime/glassdesk-open-source/releases/tag/v1.6.0",
+  "softwareRelease": "https://github.com/everlosttime/glassdesk-updates/releases/tag/v1.6.0"
+}

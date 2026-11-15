@@ -1,0 +1,17 @@
+# 构建输出
+bin/
+obj/
+artifacts/
+*.user
+*.suo
+.vs/
+TestResults/
+*.binlog
+
+# 本机运行数据
+Data/
+*.log
+
+# 临时文件
+*.tmp
+*.bak
