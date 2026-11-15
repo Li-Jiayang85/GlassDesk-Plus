@@ -42,6 +42,7 @@ internal sealed partial class AppHost
             if (_services is not null) window.UpdateNearbyStatus(NearbyStatusText());
             window.OnboardingRequested+=OnOnboardingRequested;
             window.ShowProductVersion(ProductVersion);
+            BindSettingsUpdates(window);
             window.Icon=CreateWindowIcon();
             window.Closing+=OnWindowClosing;
             _settings=window;

@@ -1,4 +1,4 @@
-# GlassDesk Plus 1.6.0（非商业修改版）
+# GlassDesk Plus 2.1.0（非商业修改版）
 
 > **原作者**：Hoxien（抖音号 **Hoxien**）｜官网：**[glassdesk.cn](https://glassdesk.cn)**
 > **本修改版维护者**：喜羊羊（抖音号 **81302504786**）
@@ -11,7 +11,7 @@
 
 ## 本版相对上游 1.6.0 的改动
 
-- **移除更新模块**：删除更新检查、云下载入口、`update-source.json`、相关设置项与测试，设置页不再有「检查更新 / 下载入口」。
+- **重新加入更新检查（面向老版本推送）**：源码树重新内置更新通道，启动时（仅核验过的安装版）静默检查、设置页「关于」可手动「检查更新」；读取 `https://api.github.com/repos/Li-Jiayang85/GlassDesk-Plus/releases/latest`，只认三段式正式版本号 `vX.Y.Z`、资产名必须是 `GlassDesk-Plus-X.Y.Z-win-x64-Setup.exe` 且带 SHA-256，下载后校验再静默升级。老版本（1.5.x～2.0.0）用的是同一套接口与资产名规则，因此发布一个更高的正式版即可推送到它们。
 - **修复拖动外观滑动条卡顿**：引入 paint-only 快路径，拖动期间只改内存不落盘，玻璃面按 25 ms 合并重合成，松手才持久化；实测单帧处理从 5–10 ms 降到 0.24 ms。
 - **重写 Dock 与信息栏位置算法**：改为「相对工作区比例 + DIP 偏移」的自由坐标（0 = 贴左/上，1 = 贴右/下，0.5 = 居中），6 个旧锚点降级为预设；Dock 只按比例落位（不再有 DIP 微调），信息栏保留水平/垂直 DIP 偏移；旧配置自动迁移且像素结果与原算法一致。
 - **安装时打开系统透明效果**：安装器在最后调用 `GlassDesk.exe --enable-system-transparency`，把 `HKCU\...\Themes\Personalize\EnableTransparency` 置 1 并广播主题变更，修复部分机型玻璃面板被 DWM 按不透明合成的问题。

@@ -49,9 +49,17 @@ internal sealed partial class AppHost : IDisposable
     private const string MessageWindowName = "GlassDesk.TrayMessageWindow";
 
     /// <summary>本次构建写入的版本号；打包脚本会把它换成发布版本。</summary>
+    /// <remarks>
+    /// 更新检查按「主.次.修订」比较，所以要先剥掉构建元数据（<c>+commitsha</c>）和预发布标记（<c>-beta</c>），
+    /// 否则 <see cref="Version.TryParse(string, out Version)"/> 会直接失败，程序就会永远认为自己是旧版本。
+    /// </remarks>
     internal static Version ProductVersion => Version.TryParse(
-        typeof(AppHost).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
-        out var parsed) ? parsed : new Version(0, 2, 9);
+        typeof(AppHost).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            .Split('+')[0]
+            .Split('-')[0],
+        out var parsed)
+        ? new Version(parsed.Major, parsed.Minor, Math.Max(0, parsed.Build))
+        : new Version(1, 0, 0);
 
     private readonly Application _application;
     private readonly CommandLineOptions _options;
@@ -254,6 +262,7 @@ internal sealed partial class AppHost : IDisposable
 
         _deferredCommandGate.Close();
         _desktopRecoveryTimer?.Stop();
+        DisposeUpdates();
 
         // Restore the desktop before stopping services that can fail during teardown.
         DisposeInteractionController();
@@ -357,6 +366,7 @@ internal sealed partial class AppHost : IDisposable
         // 否则下面的关闭处理函数会把它拦住。
         _deferredCommandGate.Close();
         _desktopRecoveryTimer?.Stop();
+        DisposeUpdates();
         _shuttingDown = true;
 
         // 显式关停：启动台和设置窗口平时常是隐藏的，
